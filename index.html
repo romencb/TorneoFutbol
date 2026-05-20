@@ -15,9 +15,11 @@
         @media (min-width: 768px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
         .card { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         input, select, button { padding: 8px; border: 1px solid var(--border); border-radius: 4px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
-        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background: var(--hover); }
         .btn-small { width: auto; padding: 5px 10px; font-size: 0.85rem; }
+        .btn-danger { background: var(--danger); margin-top: 15px; }
+        .btn-danger:hover { background: #dc2626; }
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         th, td { padding: 8px; text-align: center; border-bottom: 1px solid var(--border); }
         th { background: #f9fafb; }
@@ -42,6 +44,9 @@
                 <button class="btn-small" onclick="addTeam()">Add</button>
             </div>
             <div id="teamsContainer" style="margin-top: 10px;"></div>
+            
+            <!-- NEW WIPE BUTTON -->
+            <button class="btn-danger" onclick="clearAllData()">🗑️ Wipe All Teams & Data</button>
         </div>
 
         <div class="card">
@@ -78,6 +83,14 @@
         let db = JSON.parse(localStorage.getItem('proTournamentDb')) || { teams: {}, matches: [], schedule: [] };
 
         function saveDb() { localStorage.setItem('proTournamentDb', JSON.stringify(db)); updateUI(); }
+
+        // --- NEW CLEAR DATA FUNCTION ---
+        function clearAllData() {
+            if(confirm("🚨 Are you absolutely sure? This will delete all teams, players, schedule, and match results forever.")) {
+                db = { teams: {}, matches: [], schedule: [] };
+                saveDb();
+            }
+        }
 
         // --- TEAMS ---
         function addTeam() {
@@ -212,7 +225,7 @@
             let table = Object.values(stats).sort((a, b) => {
                 if(b.pts !== a.pts) return b.pts - a.pts;
                 if(b.gd !== a.gd) return b.gd - a.gd;
-                // Tiebreaker: Direct Encounter (Head to Head Points)
+                
                 let h2hA = 0, h2hB = 0;
                 lm.filter(m => (m.teamA===a.name && m.teamB===b.name) || (m.teamA===b.name && m.teamB===a.name)).forEach(m => {
                     if(m.teamA===a.name) { if(m.scoreA>m.scoreB) h2hA+=3; else if(m.scoreA===m.scoreB){h2hA++; h2hB++;} else h2hB+=3; }
