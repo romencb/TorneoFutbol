@@ -38,6 +38,13 @@
         
         @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
         .winner-banner { animation: popIn 0.8s ease-out; background: linear-gradient(135deg, #f59e0b, #fbbf24, #f59e0b); padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(245, 158, 11, 0.4); border: 4px solid #fff; text-align: center; margin-bottom: 20px; }
+        
+        /* Match History Styles */
+        .history-row { background: #f9fafb; padding: 15px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 10px; }
+        .history-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; margin-bottom: 8px;}
+        .history-events { font-size: 0.85rem; color: #4b5563; }
+        .badge { background: #e5e7eb; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .badge-final { background: #f59e0b; color: white; }
     </style>
 </head>
 <body>
@@ -105,6 +112,12 @@
                 </table>
             </div>
         </div>
+    </div> <!-- END MANAGER CONTENT -->
+
+    <!-- ALWAYS VISIBLE MATCH HISTORY -->
+    <div class="card" style="margin-top: 20px;">
+        <h2>Match History</h2>
+        <div id="historyContainer"></div>
     </div>
 
     <script>
@@ -381,6 +394,32 @@
                     }
                 }
             }
+
+            // Match History Rendering (Always visible)
+            let hBox = document.getElementById('historyContainer');
+            hBox.innerHTML = db.matches.length === 0 ? '<p style="text-align:center; color:#666;">No matches played yet.</p>' : '';
+            
+            [...db.matches].reverse().forEach(m => {
+                let badge = m.type === 'playoff' ? `<span class="badge badge-final">FINAL</span>` : `<span class="badge">LEAGUE</span>`;
+                
+                let eventsHtml = m.events.map(ev => {
+                    let astText = ev.assist ? `<span style="color:#9ca3af; font-size:0.75rem;">(ast: ${ev.assist})</span>` : '';
+                    return `⚽ <strong>${ev.scorer}</strong> ${astText}`;
+                }).join('<br>');
+                
+                if(!eventsHtml) eventsHtml = '<span style="color:#9ca3af; font-size:0.8rem;">No goal details recorded.</span>';
+
+                hBox.innerHTML += `
+                    <div class="history-row">
+                        <div class="history-header">
+                            <span>${m.teamA} ${m.scoreA} - ${m.scoreB} ${m.teamB}</span>
+                            ${badge}
+                        </div>
+                        <div class="history-events">${eventsHtml}</div>
+                    </div>
+                `;
+            });
+
             updateGoals();
         }
         updateUI();
