@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tournament Tracker</title>
+    <title>Pro Tournament Tracker</title>
     <style>
         :root {
-            --bg-color: #f4f4f9;
+            --bg-color: #f3f4f6;
             --card-bg: #ffffff;
             --primary: #2563eb;
             --primary-hover: #1d4ed8;
+            --success: #10b981;
+            --danger: #ef4444;
             --text-main: #1f2937;
             --border: #e5e7eb;
         }
@@ -18,14 +20,20 @@
             font-family: system-ui, -apple-system, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 20px;
         }
 
-        h1, h2 {
-            text-align: center;
-            color: #111827;
+        h1, h2, h3 { color: #111827; text-align: center; }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        @media (min-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr 1fr; }
         }
 
         .card {
@@ -33,160 +41,276 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            margin-bottom: 24px;
         }
 
-        .form-group {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        input {
-            padding: 8px 12px;
+        input, select {
+            padding: 8px;
             border: 1px solid var(--border);
             border-radius: 4px;
-            font-size: 1rem;
+            font-size: 0.95rem;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 10px;
         }
-
-        input[type="text"] { width: 150px; }
-        input[type="number"] { width: 60px; text-align: center; }
+        
+        .score-input { text-align: center; font-weight: bold; font-size: 1.2rem; }
 
         button {
             background-color: var(--primary);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 10px 15px;
             border-radius: 4px;
             cursor: pointer;
             font-weight: 600;
-            transition: background-color 0.2s;
-        }
-
-        button:hover { background-color: var(--primary-hover); }
-
-        table {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
+            transition: 0.2s;
         }
+        button:hover { background-color: var(--primary-hover); }
+        button.add-btn { background-color: var(--success); }
+        button.danger-btn { background-color: var(--danger); margin-top: 10px;}
 
-        th, td {
-            padding: 12px;
-            text-align: center;
-            border-bottom: 1px solid var(--border);
-        }
-
-        th {
-            background-color: #f9fafb;
-            font-weight: 600;
-        }
-
-        .team-name { text-align: left; font-weight: 500; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid var(--border); }
+        th { background-color: #f9fafb; font-weight: 600; }
+        .text-left { text-align: left; }
         
-        .match-history {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        .team-management { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+        .player-badge {
+            display: inline-block; background: #e5e7eb; padding: 3px 8px; 
+            border-radius: 12px; font-size: 0.8rem; margin: 2px;
         }
+
+        .goal-row {
+            display: flex; gap: 10px; align-items: center; background: #f9fafb; 
+            padding: 10px; border-radius: 4px; margin-bottom: 5px; border: 1px solid var(--border);
+        }
+        .goal-row select { margin-bottom: 0; }
 
         .match-row {
-            display: flex;
-            justify-content: space-between;
-            background: #f9fafb;
-            padding: 10px 15px;
-            border-radius: 4px;
-            border: 1px solid var(--border);
+            background: #f9fafb; padding: 15px; border-radius: 6px; 
+            border: 1px solid var(--border); margin-bottom: 10px;
         }
-
-        .danger-btn { background-color: #ef4444; margin-top: 20px; }
-        .danger-btn:hover { background-color: #dc2626; }
+        .match-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; margin-bottom: 8px;}
+        .match-events { font-size: 0.85rem; color: #4b5563; }
+        .playoff-badge { background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
+        .top-two { background-color: #ecfdf5; }
     </style>
 </head>
 <body>
 
-    <h1>🏆 Tournament Tracker</h1>
+    <h1>⚽ Pro Tournament Tracker</h1>
 
-    <div class="card">
-        <h2>Record a Match</h2>
-        <form id="matchForm" class="form-group">
-            <input type="text" id="teamA" placeholder="Home Team" required>
-            <input type="number" id="scoreA" min="0" required>
-            <span>-</span>
-            <input type="number" id="scoreB" min="0" required>
-            <input type="text" id="teamB" placeholder="Away Team" required>
-            <button type="submit">Save Result</button>
-        </form>
+    <div class="grid grid-2">
+        <!-- TEAMS & PLAYERS CARD -->
+        <div class="card">
+            <h2>1. Teams & Rosters</h2>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="newTeamName" placeholder="New Team Name">
+                <button class="add-btn" style="width: auto;" onclick="addTeam()">Add Team</button>
+            </div>
+            <div id="teamsContainer" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- MATCH ENTRY CARD -->
+        <div class="card">
+            <h2>2. Record Match</h2>
+            <select id="matchType">
+                <option value="league">League Match</option>
+                <option value="playoff">Playoff Final (Top 2)</option>
+            </select>
+            
+            <div style="display: flex; gap: 15px; align-items: center; margin-top: 10px;">
+                <div style="flex: 1;">
+                    <select id="teamA" onchange="updateGoalFields()"><option value="">Home Team</option></select>
+                    <input type="number" id="scoreA" class="score-input" min="0" value="0" oninput="updateGoalFields()">
+                </div>
+                <strong>VS</strong>
+                <div style="flex: 1;">
+                    <select id="teamB" onchange="updateGoalFields()"><option value="">Away Team</option></select>
+                    <input type="number" id="scoreB" class="score-input" min="0" value="0" oninput="updateGoalFields()">
+                </div>
+            </div>
+
+            <div id="goalsContainerA" style="margin-top: 15px;"></div>
+            <div id="goalsContainerB" style="margin-top: 15px;"></div>
+
+            <button onclick="saveMatch()" style="margin-top: 15px;">Save Match</button>
+        </div>
     </div>
 
-    <div class="card">
-        <h2>Standings</h2>
+    <!-- STANDINGS CARD -->
+    <div class="card" style="margin-top: 20px;">
+        <h2>League Standings</h2>
+        <p style="text-align: center; font-size: 0.85rem; color: #6b7280; margin-top: -10px;">Top 2 advance to the Playoff Final. (Based on League Matches only)</p>
         <div style="overflow-x: auto;">
             <table>
                 <thead>
                     <tr>
                         <th>Pos</th>
-                        <th class="team-name">Team</th>
-                        <th>P</th>
-                        <th>W</th>
-                        <th>D</th>
-                        <th>L</th>
-                        <th>GF</th>
-                        <th>GA</th>
-                        <th>GD</th>
-                        <th>Pts</th>
+                        <th class="text-left">Team</th>
+                        <th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th>
                     </tr>
                 </thead>
-                <tbody id="standingsBody">
-                    <!-- Standings will be injected here -->
-                </tbody>
+                <tbody id="standingsBody"></tbody>
             </table>
         </div>
     </div>
 
-    <div class="card">
-        <h2>Match History</h2>
-        <div id="historyContainer" class="match-history">
-            <!-- Matches will be injected here -->
+    <div class="grid grid-2" style="margin-top: 20px;">
+        <!-- PLAYER STATS CARD -->
+        <div class="card">
+            <h2>Player Stats</h2>
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <h3 style="font-size: 1rem;">⚽ Top Scorers</h3>
+                    <table style="font-size: 0.85rem;">
+                        <thead><tr><th class="text-left">Player</th><th>G</th></tr></thead>
+                        <tbody id="topScorersBody"></tbody>
+                    </table>
+                </div>
+                <div style="flex: 1;">
+                    <h3 style="font-size: 1rem;">👟 Top Assists</h3>
+                    <table style="font-size: 0.85rem;">
+                        <thead><tr><th class="text-left">Player</th><th>A</th></tr></thead>
+                        <tbody id="topAssistsBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-        <button class="danger-btn" onclick="clearData()">Clear All Tournament Data</button>
+
+        <!-- MATCH HISTORY CARD -->
+        <div class="card">
+            <h2>Match History</h2>
+            <div id="historyContainer"></div>
+            <button class="danger-btn" onclick="clearData()">Wipe Tournament Data</button>
+        </div>
     </div>
 
     <script>
-        // Load matches from local storage or initialize empty array
-        let matches = JSON.parse(localStorage.getItem('tournamentMatches')) || [];
+        // Core Data Structure
+        let db = JSON.parse(localStorage.getItem('proTournamentDb')) || {
+            teams: {}, // { "FC Team": ["Player1", "Player2"] }
+            matches: [] // { id, type, teamA, teamB, scoreA, scoreB, events: [{team, scorer, assist}] }
+        };
 
-        const form = document.getElementById('matchForm');
-        
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
+        // --- TEAMS & PLAYERS LOGIC ---
+        function addTeam() {
+            const name = document.getElementById('newTeamName').value.trim();
+            if (name && !db.teams[name]) {
+                db.teams[name] = [];
+                document.getElementById('newTeamName').value = '';
+                saveDb();
+            }
+        }
+
+        function addPlayer(teamName) {
+            const inputId = `newPlayer_${teamName.replace(/\s+/g, '')}`;
+            const playerName = document.getElementById(inputId).value.trim();
+            if (playerName && !db.teams[teamName].includes(playerName)) {
+                db.teams[teamName].push(playerName);
+                saveDb();
+            }
+        }
+
+        function removeTeam(teamName) {
+            if(confirm(`Delete ${teamName} and all its players? Matches will remain but team won't be selectable.`)) {
+                delete db.teams[teamName];
+                saveDb();
+            }
+        }
+
+        // --- MATCH ENTRY LOGIC ---
+        function updateGoalFields() {
+            renderTeamGoals('A', 'teamA', 'scoreA', 'goalsContainerA');
+            renderTeamGoals('B', 'teamB', 'scoreB', 'goalsContainerB');
+        }
+
+        function renderTeamGoals(side, teamSelectId, scoreInputId, containerId) {
+            const team = document.getElementById(teamSelectId).value;
+            const score = parseInt(document.getElementById(scoreInputId).value) || 0;
+            const container = document.getElementById(containerId);
             
-            // Standardize team names to Title Case to prevent duplicates from casing
-            const teamA = document.getElementById('teamA').value.trim();
-            const teamB = document.getElementById('teamB').value.trim();
-            const scoreA = parseInt(document.getElementById('scoreA').value);
-            const scoreB = parseInt(document.getElementById('scoreB').value);
-
-            if (teamA.toLowerCase() === teamB.toLowerCase()) {
-                alert("A team cannot play against itself!");
+            if (!team || score === 0) {
+                container.innerHTML = '';
                 return;
             }
 
-            const match = { teamA, scoreA, teamB, scoreB, id: Date.now() };
-            matches.push(match);
-            saveData();
-            
-            form.reset();
-            document.getElementById('teamA').focus();
-        });
+            const players = db.teams[team] || [];
+            let options = `<option value="">- Unknown/Own Goal -</option>`;
+            players.forEach(p => options += `<option value="${p}">${p}</option>`);
 
+            let html = `<h4 style="margin: 0 0 10px 0; font-size: 0.9rem;">⚽ ${team} Goals</h4>`;
+            for (let i = 0; i < score; i++) {
+                html += `
+                    <div class="goal-row" data-team="${team}">
+                        <select class="scorer-select" data-side="${side}" required>
+                            <option value="">-- Scorer --</option>
+                            ${options}
+                        </select>
+                        <select class="assist-select" data-side="${side}">
+                            <option value="">-- Assist --</option>
+                            ${options}
+                        </select>
+                    </div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function saveMatch() {
+            const type = document.getElementById('matchType').value;
+            const teamA = document.getElementById('teamA').value;
+            const teamB = document.getElementById('teamB').value;
+            const scoreA = parseInt(document.getElementById('scoreA').value) || 0;
+            const scoreB = parseInt(document.getElementById('scoreB').value) || 0;
+
+            if (!teamA || !teamB || teamA === teamB) {
+                alert("Please select two different teams.");
+                return;
+            }
+
+            let events = [];
+            
+            // Gather Goal Data
+            const gatherEvents = (side) => {
+                const selects = document.querySelectorAll(`.scorer-select[data-side="${side}"]`);
+                const assists = document.querySelectorAll(`.assist-select[data-side="${side}"]`);
+                
+                selects.forEach((sc, idx) => {
+                    if(sc.value) { // Only track if a scorer was selected
+                        events.push({
+                            team: side === 'A' ? teamA : teamB,
+                            scorer: sc.value,
+                            assist: assists[idx].value || null
+                        });
+                    }
+                });
+            };
+
+            gatherEvents('A');
+            gatherEvents('B');
+
+            db.matches.push({
+                id: Date.now(), type, teamA, teamB, scoreA, scoreB, events
+            });
+
+            // Reset Form
+            document.getElementById('scoreA').value = 0;
+            document.getElementById('scoreB').value = 0;
+            updateGoalFields();
+            
+            saveDb();
+        }
+
+        // --- STATS & STANDINGS LOGIC ---
         function calculateStandings() {
             const stats = {};
+            Object.keys(db.teams).forEach(t => stats[t] = { p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 });
 
-            matches.forEach(m => {
-                // Initialize teams if they don't exist
+            // Only calculate league matches for standings
+            const leagueMatches = db.matches.filter(m => m.type === 'league');
+
+            leagueMatches.forEach(m => {
                 if (!stats[m.teamA]) stats[m.teamA] = { p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 };
                 if (!stats[m.teamB]) stats[m.teamB] = { p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 };
 
@@ -197,82 +321,147 @@
                 tA.gf += m.scoreA; tA.ga += m.scoreB;
                 tB.gf += m.scoreB; tB.ga += m.scoreA;
 
-                if (m.scoreA > m.scoreB) {
-                    tA.w++; tA.pts += 3;
-                    tB.l++;
-                } else if (m.scoreA < m.scoreB) {
-                    tB.w++; tB.pts += 3;
-                    tA.l++;
-                } else {
-                    tA.d++; tB.d++;
-                    tA.pts += 1; tB.pts += 1;
-                }
+                if (m.scoreA > m.scoreB) { tA.w++; tA.pts += 3; tB.l++; } 
+                else if (m.scoreA < m.scoreB) { tB.w++; tB.pts += 3; tA.l++; } 
+                else { tA.d++; tB.d++; tA.pts += 1; tB.pts += 1; }
 
                 tA.gd = tA.gf - tA.ga;
                 tB.gd = tB.gf - tB.ga;
             });
 
-            // Convert object to array and sort: Points > Goal Difference > Goals For
             return Object.entries(stats)
                 .map(([name, data]) => ({ name, ...data }))
                 .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
         }
 
+        function calculatePlayerStats() {
+            const playerStats = {};
+
+            db.matches.forEach(m => {
+                m.events.forEach(ev => {
+                    if (ev.scorer) {
+                        if(!playerStats[ev.scorer]) playerStats[ev.scorer] = { goals: 0, assists: 0 };
+                        playerStats[ev.scorer].goals++;
+                    }
+                    if (ev.assist) {
+                        if(!playerStats[ev.assist]) playerStats[ev.assist] = { goals: 0, assists: 0 };
+                        playerStats[ev.assist].assists++;
+                    }
+                });
+            });
+
+            return Object.entries(playerStats).map(([name, stats]) => ({ name, ...stats }));
+        }
+
+
+        // --- UI RENDERERS ---
         function updateUI() {
+            // 1. Render Teams
+            const teamsContainer = document.getElementById('teamsContainer');
+            const teamSelectA = document.getElementById('teamA');
+            const teamSelectB = document.getElementById('teamB');
+            
+            teamsContainer.innerHTML = '';
+            
+            // Preserve dropdown selections if they exist
+            const currentA = teamSelectA.value;
+            const currentB = teamSelectB.value;
+            
+            teamSelectA.innerHTML = '<option value="">Home Team</option>';
+            teamSelectB.innerHTML = '<option value="">Away Team</option>';
+
+            Object.entries(db.teams).forEach(([teamName, players]) => {
+                // Populate Management Card
+                const inputId = `newPlayer_${teamName.replace(/\s+/g, '')}`;
+                let rosterHtml = players.map(p => `<span class="player-badge">${p}</span>`).join('');
+                
+                teamsContainer.innerHTML += `
+                    <div class="team-management">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <strong>${teamName}</strong>
+                            <button onclick="removeTeam('${teamName}')" style="background:none; color:var(--danger); border:none; padding:0; width:auto; font-size:0.8rem; text-decoration:underline;">Delete Team</button>
+                        </div>
+                        <div style="margin-bottom: 5px;">${rosterHtml}</div>
+                        <div style="display: flex; gap: 5px;">
+                            <input type="text" id="${inputId}" placeholder="Add player name" style="margin:0;">
+                            <button class="add-btn" style="width: auto; padding: 5px 10px;" onclick="addPlayer('${teamName}')">+</button>
+                        </div>
+                    </div>
+                `;
+
+                // Populate Dropdowns
+                teamSelectA.innerHTML += `<option value="${teamName}">${teamName}</option>`;
+                teamSelectB.innerHTML += `<option value="${teamName}">${teamName}</option>`;
+            });
+
+            teamSelectA.value = currentA || "";
+            teamSelectB.value = currentB || "";
+
+            // 2. Render Standings
             const standings = calculateStandings();
             const tbody = document.getElementById('standingsBody');
             tbody.innerHTML = '';
-
-            standings.forEach((team, index) => {
+            standings.forEach((team, idx) => {
+                const isTopTwo = idx < 2 && team.p > 0 ? 'top-two' : '';
                 tbody.innerHTML += `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td class="team-name">${team.name}</td>
-                        <td>${team.p}</td>
-                        <td>${team.w}</td>
-                        <td>${team.d}</td>
-                        <td>${team.l}</td>
-                        <td>${team.gf}</td>
-                        <td>${team.ga}</td>
-                        <td>${team.gd > 0 ? '+' + team.gd : team.gd}</td>
+                    <tr class="${isTopTwo}">
+                        <td>${idx + 1}</td>
+                        <td class="text-left" style="font-weight:600;">${team.name}</td>
+                        <td>${team.p}</td><td>${team.w}</td><td>${team.d}</td><td>${team.l}</td>
+                        <td>${team.gf}</td><td>${team.ga}</td>
+                        <td>${team.gd > 0 ? '+'+team.gd : team.gd}</td>
                         <td><strong>${team.pts}</strong></td>
                     </tr>
                 `;
             });
 
+            // 3. Render Player Stats
+            const pStats = calculatePlayerStats();
+            const gBody = document.getElementById('topScorersBody');
+            const aBody = document.getElementById('topAssistsBody');
+            
+            const topScorers = [...pStats].sort((a, b) => b.goals - a.goals).filter(p => p.goals > 0).slice(0, 10);
+            const topAssists = [...pStats].sort((a, b) => b.assists - a.assists).filter(p => p.assists > 0).slice(0, 10);
+
+            gBody.innerHTML = topScorers.map(p => `<tr><td class="text-left">${p.name}</td><td><strong>${p.goals}</strong></td></tr>`).join('') || '<tr><td colspan="2">No goals yet</td></tr>';
+            aBody.innerHTML = topAssists.map(p => `<tr><td class="text-left">${p.name}</td><td><strong>${p.assists}</strong></td></tr>`).join('') || '<tr><td colspan="2">No assists yet</td></tr>';
+
+            // 4. Render History
             const historyContainer = document.getElementById('historyContainer');
             historyContainer.innerHTML = '';
-            
-            // Show newest matches first
-            [...matches].reverse().forEach(m => {
+            [...db.matches].reverse().forEach(m => {
+                const badge = m.type === 'playoff' ? `<span class="playoff-badge">FINAL</span>` : '';
+                
+                let eventsHtml = m.events.map(ev => 
+                    `⚽ ${ev.scorer} ${ev.assist ? `(Assist: ${ev.assist})` : ''}`
+                ).join('<br>');
+
                 historyContainer.innerHTML += `
                     <div class="match-row">
-                        <span><strong>${m.teamA}</strong></span>
-                        <span>${m.scoreA} - ${m.scoreB}</span>
-                        <span><strong>${m.teamB}</strong></span>
+                        <div class="match-header">
+                            <span>${m.teamA} ${m.scoreA} - ${m.scoreB} ${m.teamB}</span>
+                            ${badge}
+                        </div>
+                        <div class="match-events">${eventsHtml}</div>
                     </div>
                 `;
             });
-
-            if (matches.length === 0) {
-                historyContainer.innerHTML = '<p style="text-align:center; color:#6b7280;">No matches recorded yet.</p>';
-                tbody.innerHTML = '<tr><td colspan="10" style="color:#6b7280;">No teams yet. Log a match to generate standings.</td></tr>';
-            }
+            if(db.matches.length === 0) historyContainer.innerHTML = '<p>No matches yet.</p>';
         }
 
-        function saveData() {
-            localStorage.setItem('tournamentMatches', JSON.stringify(matches));
+        function saveDb() {
+            localStorage.setItem('proTournamentDb', JSON.stringify(db));
             updateUI();
         }
 
         function clearData() {
-            if(confirm("Are you sure? This will delete all matches and reset the standings forever.")) {
-                matches = [];
-                saveData();
+            if(confirm("Are you sure? This will wipe ALL teams, players, and match data!")) {
+                db = { teams: {}, matches: [] };
+                saveDb();
             }
         }
 
-        // Initial render
+        // Initialize
         updateUI();
     </script>
 </body>
