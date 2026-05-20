@@ -3,233 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tournament Manager</title>
+    <title>Tournament Stats</title>
     <style>
-        :root { --bg: #f3f4f6; --card: #fff; --primary: #2563eb; --hover: #1d4ed8; --danger: #ef4444; --border: #e5e7eb; }
-        body { font-family: system-ui, sans-serif; background: var(--bg); color: #1f2937; max-width: 1000px; margin: 0 auto; padding: 20px; }
+        :root { --bg: #f3f4f6; --card: #fff; --primary: #2563eb; --border: #e5e7eb; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); color: #1f2937; max-width: 900px; margin: 0 auto; padding: 20px; }
         nav { display: flex; gap: 15px; margin-bottom: 20px; background: var(--card); padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         nav a { text-decoration: none; color: var(--primary); font-weight: bold; }
         .active-tab { color: #111827; border-bottom: 2px solid var(--primary); }
-        h1, h2 { text-align: center; }
-        .grid-2 { display: grid; grid-template-columns: 1fr; gap: 20px; }
-        @media (min-width: 768px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
-        .card { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        input, select, button { padding: 8px; border: 1px solid var(--border); border-radius: 4px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
-        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background: var(--hover); }
-        .btn-small { width: auto; padding: 5px 10px; font-size: 0.85rem; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        th, td { padding: 8px; text-align: center; border-bottom: 1px solid var(--border); }
+        h1, h2, h3 { text-align: center; }
+        .card { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .controls { display: flex; justify-content: center; gap: 20px; margin-bottom: 20px; align-items: center; }
+        select { padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem; width: auto; min-width: 180px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid var(--border); }
         th { background: #f9fafb; }
         .text-left { text-align: left; }
-        .top-two { background: #ecfdf5; }
-        .schedule-list { max-height: 300px; overflow-y: auto; font-size: 0.85rem; }
-        .schedule-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid var(--border); align-items: center; }
+        .grid-2 { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media (min-width: 768px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
     </style>
 </head>
 <body>
 
     <nav>
-        <a href="index.html" class="active-tab">⚽ Manager & Standings</a>
-        <a href="stats.html">📊 Player & Team Stats</a>
+        <a href="index.html">⚽ Manager & Standings</a>
+        <a href="stats.html" class="active-tab">📊 Player & Team Stats</a>
     </nav>
 
-    <div class="grid-2">
-        <div class="card">
-            <h2>1. Teams & Rosters</h2>
-            <div style="display: flex; gap: 10px;">
-                <input type="text" id="newTeam" placeholder="Team Name">
-                <button class="btn-small" onclick="addTeam()">Add</button>
-            </div>
-            <div id="teamsContainer" style="margin-top: 10px;"></div>
-        </div>
+    <h1>Tournament Analytics</h1>
 
-        <div class="card">
-            <h2>2. Schedule (Double Round-Robin)</h2>
-            <button onclick="generateSchedule()">Generate Random Schedule</button>
-            <p style="font-size: 0.8rem; color: #6b7280; text-align:center;">Generates home & away matches for all entered teams.</p>
-            <div class="schedule-list" id="scheduleContainer"></div>
-        </div>
+    <div class="card controls">
+        <strong>View Mode:</strong>
+        <select id="viewMode" onchange="toggleView()">
+            <option value="overall">Overall Tournament Leaders</option>
+            <option value="team">Roster Breakdown by Team</option>
+        </select>
+        
+        <select id="teamFilter" style="display:none;" onchange="renderStats()">
+            <option value="">Select a Team...</option>
+        </select>
     </div>
 
-    <div class="card" style="margin-top: 20px;">
-        <h2 id="matchEntryTitle">3. Record Match</h2>
-        <select id="matchType"><option value="league">League Match</option><option value="playoff">Playoff Final</option></select>
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <div style="flex: 1;"><select id="teamA" onchange="updateGoals()"></select><input type="number" id="scoreA" value="0" oninput="updateGoals()" style="text-align:center; font-weight:bold; font-size:1.2rem;"></div>
-            <strong>VS</strong>
-            <div style="flex: 1;"><select id="teamB" onchange="updateGoals()"></select><input type="number" id="scoreB" value="0" oninput="updateGoals()" style="text-align:center; font-weight:bold; font-size:1.2rem;"></div>
-        </div>
-        <div id="goalsA"></div><div id="goalsB"></div>
-        <button onclick="saveMatch()">Save Result</button>
-    </div>
-
-    <div class="card" style="margin-top: 20px;">
-        <h2>League Standings</h2>
-        <div style="overflow-x: auto;">
+    <!-- OVERALL VIEW -->
+    <div id="overallView" class="grid-2">
+        <div class="card">
+            <h3>⚽ Golden Boot (Top Scorers)</h3>
             <table>
-                <thead><tr><th>Pos</th><th class="text-left">Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead>
-                <tbody id="standingsBody"></tbody>
+                <thead><tr><th class="text-left">Player</th><th class="text-left">Team</th><th>G</th></tr></thead>
+                <tbody id="topScorers"></tbody>
+            </table>
+        </div>
+        <div class="card">
+            <h3>👟 Top Playmakers (Assists)</h3>
+            <table>
+                <thead><tr><th class="text-left">Player</th><th class="text-left">Team</th><th>A</th></tr></thead>
+                <tbody id="topAssists"></tbody>
             </table>
         </div>
     </div>
 
+    <!-- TEAM VIEW -->
+    <div id="teamView" class="card" style="display:none;">
+        <h3 id="teamTitle">Team Stats</h3>
+        <table>
+            <thead><tr><th class="text-left">Player</th><th>Goals</th><th>Assists</th><th>Total Contributions</th></tr></thead>
+            <tbody id="teamRosterStats"></tbody>
+        </table>
+    </div>
+
     <script>
-        let db = JSON.parse(localStorage.getItem('proTournamentDb')) || { teams: {}, matches: [], schedule: [] };
+        let db = JSON.parse(localStorage.getItem('proTournamentDb')) || { teams: {}, matches: [] };
 
-        function saveDb() { localStorage.setItem('proTournamentDb', JSON.stringify(db)); updateUI(); }
-
-        // --- TEAMS ---
-        function addTeam() {
-            let name = document.getElementById('newTeam').value.trim();
-            if (name && !db.teams[name]) { db.teams[name] = []; document.getElementById('newTeam').value = ''; saveDb(); }
-        }
-        function addPlayer(team) {
-            let pName = document.getElementById(`p_${team}`).value.trim();
-            if (pName && !db.teams[team].includes(pName)) { db.teams[team].push(pName); saveDb(); }
+        function init() {
+            let filter = document.getElementById('teamFilter');
+            Object.keys(db.teams).forEach(t => filter.innerHTML += `<option value="${t}">${t}</option>`);
+            renderStats();
         }
 
-        // --- SCHEDULE ---
-        function generateSchedule() {
-            let teams = Object.keys(db.teams);
-            if (teams.length < 2) return alert("Add at least 2 teams first.");
-            if (db.schedule.length > 0 && !confirm("Overwrite existing schedule?")) return;
-            
-            teams.sort(() => Math.random() - 0.5); // Shuffle
-            let rounds = [], dummy = teams.length % 2 !== 0;
-            let pTeams = [...teams];
-            if (dummy) pTeams.push(null);
-            
-            let n = pTeams.length;
-            for (let i = 0; i < n - 1; i++) {
-                let round = [];
-                for (let j = 0; j < n / 2; j++) {
-                    let home = pTeams[j], away = pTeams[n - 1 - j];
-                    if (home && away) round.push({ tA: home, tB: away });
-                }
-                rounds.push(round);
-                pTeams.splice(1, 0, pTeams.pop());
-            }
-            
-            // Double round robin (Home & Away)
-            let secondHalf = rounds.map(r => r.map(m => ({ tA: m.tB, tB: m.tA })));
-            db.schedule = [...rounds.flat(), ...secondHalf.flat()];
-            saveDb();
+        function toggleView() {
+            let mode = document.getElementById('viewMode').value;
+            document.getElementById('teamFilter').style.display = mode === 'team' ? 'block' : 'none';
+            document.getElementById('overallView').style.display = mode === 'overall' ? 'grid' : 'none';
+            document.getElementById('teamView').style.display = mode === 'team' ? 'block' : 'none';
+            renderStats();
         }
 
-        function loadScheduledMatch(idx) {
-            let match = db.schedule[idx];
-            document.getElementById('teamA').value = match.tA;
-            document.getElementById('teamB').value = match.tB;
-            document.getElementById('scoreA').value = 0;
-            document.getElementById('scoreB').value = 0;
-            document.getElementById('matchEntryTitle').innerText = "3. Record Match (Playing Scheduled Match)";
-            document.getElementById('matchEntryTitle').dataset.scheduleIdx = idx;
-            updateGoals();
-            document.getElementById('matchEntryTitle').scrollIntoView({behavior: "smooth"});
-        }
-
-        // --- MATCH ENTRY ---
-        function updateGoals() { renderGoals('A', 'teamA', 'scoreA', 'goalsA'); renderGoals('B', 'teamB', 'scoreB', 'goalsB'); }
-        function renderGoals(side, selId, scrId, boxId) {
-            let team = document.getElementById(selId).value, score = parseInt(document.getElementById(scrId).value) || 0;
-            let box = document.getElementById(boxId);
-            if (!team || score === 0) return box.innerHTML = '';
+        function getPlayerStats() {
+            let pStats = {};
             
-            let opts = `<option value="">- Player -</option>` + (db.teams[team] || []).map(p => `<option value="${p}">${p}</option>`).join('');
-            let html = `<h4 style="margin:5px 0;">⚽ ${team}</h4>`;
-            for(let i=0; i<score; i++) {
-                html += `<div style="display:flex; gap:5px; margin-bottom:5px;">
-                    <select class="sc-${side}">${opts}</select><select class="as-${side}"><option value="">- Assist -</option>${opts.replace('- Player -', '')}</select>
-                </div>`;
-            }
-            box.innerHTML = html;
-        }
-
-        function saveMatch() {
-            let tA = document.getElementById('teamA').value, tB = document.getElementById('teamB').value;
-            let sA = parseInt(document.getElementById('scoreA').value) || 0, sB = parseInt(document.getElementById('scoreB').value) || 0;
-            if(!tA || !tB || tA===tB) return alert("Select valid teams.");
-
-            let events = [];
-            const getEvts = (side, team) => {
-                let scs = document.querySelectorAll(`.sc-${side}`), asts = document.querySelectorAll(`.as-${side}`);
-                scs.forEach((sc, i) => { if(sc.value) events.push({ team, scorer: sc.value, assist: asts[i].value || null }); });
-            };
-            getEvts('A', tA); getEvts('B', tB);
-
-            db.matches.push({ type: document.getElementById('matchType').value, teamA: tA, teamB: tB, scoreA: sA, scoreB: sB, events });
-            
-            // Remove from schedule if it was a scheduled match
-            let sIdx = document.getElementById('matchEntryTitle').dataset.scheduleIdx;
-            if(sIdx !== undefined) {
-                db.schedule.splice(sIdx, 1);
-                delete document.getElementById('matchEntryTitle').dataset.scheduleIdx;
-                document.getElementById('matchEntryTitle').innerText = "3. Record Match";
-            }
-            
-            document.getElementById('scoreA').value = 0; document.getElementById('scoreB').value = 0;
-            updateGoals(); saveDb();
-        }
-
-        // --- STANDINGS & UI ---
-        function updateUI() {
-            // Teams
-            let tBox = document.getElementById('teamsContainer'), sA = document.getElementById('teamA'), sB = document.getElementById('teamB');
-            tBox.innerHTML = ''; sA.innerHTML = '<option value="">Home Team</option>'; sB.innerHTML = '<option value="">Away Team</option>';
-            
-            Object.entries(db.teams).forEach(([t, p]) => {
-                tBox.innerHTML += `<div style="border-bottom:1px solid #ddd; padding-bottom:10px; margin-bottom:10px;">
-                    <strong>${t}</strong> <span style="font-size:0.8rem; color:#666;">(${p.length} players)</span>
-                    <div style="display:flex; gap:5px; margin-top:5px;"><input type="text" id="p_${t}" placeholder="Player name"><button class="btn-small" onclick="addPlayer('${t}')">+</button></div>
-                </div>`;
-                sA.innerHTML += `<option value="${t}">${t}</option>`; sB.innerHTML += `<option value="${t}">${t}</option>`;
+            // Initialize all registered players
+            Object.entries(db.teams).forEach(([teamName, players]) => {
+                players.forEach(p => pStats[p] = { team: teamName, g: 0, a: 0 });
             });
 
-            // Schedule
-            let schedBox = document.getElementById('scheduleContainer');
-            schedBox.innerHTML = db.schedule.length === 0 ? '<p style="text-align:center; color:#666;">No matches scheduled.</p>' : '';
-            db.schedule.forEach((m, i) => {
-                schedBox.innerHTML += `<div class="schedule-item"><span>${m.tA} <strong>vs</strong> ${m.tB}</span>
-                <button class="btn-small" style="background:#10b981;" onclick="loadScheduledMatch(${i})">Play</button></div>`;
-            });
-
-            // Standings
-            let stats = {};
-            Object.keys(db.teams).forEach(t => stats[t] = { p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, name: t });
-            let lm = db.matches.filter(m => m.type === 'league');
-            lm.forEach(m => {
-                let a=stats[m.teamA], b=stats[m.teamB];
-                if(a && b) {
-                    a.p++; b.p++; a.gf+=m.scoreA; a.ga+=m.scoreB; b.gf+=m.scoreB; b.ga+=m.scoreA;
-                    if(m.scoreA > m.scoreB) { a.w++; a.pts+=3; b.l++; }
-                    else if(m.scoreA < m.scoreB) { b.w++; b.pts+=3; a.l++; }
-                    else { a.d++; b.d++; a.pts++; b.pts++; }
-                    a.gd = a.gf - a.ga; b.gd = b.gf - b.ga;
-                }
-            });
-
-            let table = Object.values(stats).sort((a, b) => {
-                if(b.pts !== a.pts) return b.pts - a.pts;
-                if(b.gd !== a.gd) return b.gd - a.gd;
-                // Tiebreaker: Direct Encounter (Head to Head Points)
-                let h2hA = 0, h2hB = 0;
-                lm.filter(m => (m.teamA===a.name && m.teamB===b.name) || (m.teamA===b.name && m.teamB===a.name)).forEach(m => {
-                    if(m.teamA===a.name) { if(m.scoreA>m.scoreB) h2hA+=3; else if(m.scoreA===m.scoreB){h2hA++; h2hB++;} else h2hB+=3; }
-                    else { if(m.scoreB>m.scoreA) h2hA+=3; else if(m.scoreA===m.scoreB){h2hA++; h2hB++;} else h2hB+=3; }
+            // Tally metrics from saved match histories
+            db.matches.forEach(m => {
+                m.events.forEach(ev => {
+                    if(ev.scorer) {
+                        if(!pStats[ev.scorer]) pStats[ev.scorer] = { team: ev.team, g: 0, a: 0 };
+                        pStats[ev.scorer].g++;
+                    }
+                    if(ev.assist) {
+                        if(!pStats[ev.assist]) pStats[ev.assist] = { team: ev.team, g: 0, a: 0 };
+                        pStats[ev.assist].a++;
+                    }
                 });
-                if(h2hB !== h2hA) return h2hB - h2hA;
-                return b.gf - a.gf;
             });
-
-            let bdy = document.getElementById('standingsBody'); bdy.innerHTML = '';
-            table.forEach((t, i) => {
-                bdy.innerHTML += `<tr class="${i<2 && t.p>0 ? 'top-two' : ''}"><td>${i+1}</td><td class="text-left"><strong>${t.name}</strong></td>
-                <td>${t.p}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gf}</td><td>${t.ga}</td>
-                <td>${t.gd>0?'+'+t.gd:t.gd}</td><td><strong>${t.pts}</strong></td></tr>`;
-            });
+            return pStats;
         }
-        updateUI();
+
+        function renderStats() {
+            let stats = getPlayerStats();
+            let mode = document.getElementById('viewMode').value;
+
+            if(mode === 'overall') {
+                let arr = Object.entries(stats).map(([name, data]) => ({ name, ...data }));
+                let scorers = [...arr].sort((a, b) => b.g - a.g).filter(p => p.g > 0).slice(0, 15);
+                let assists = [...arr].sort((a, b) => b.a - a.a).filter(p => p.a > 0).slice(0, 15);
+
+                document.getElementById('topScorers').innerHTML = scorers.map(p => 
+                    `<tr><td class="text-left"><strong>${p.name}</strong></td><td class="text-left" style="font-size:0.85rem; color:#666;">${p.team}</td><td><strong>${p.g}</strong></td></tr>`
+                ).join('') || '<tr><td colspan="3" style="color:#666; padding:20px;">No goals logged yet.</td></tr>';
+
+                document.getElementById('topAssists').innerHTML = assists.map(p => 
+                    `<tr><td class="text-left"><strong>${p.name}</strong></td><td class="text-left" style="font-size:0.85rem; color:#666;">${p.team}</td><td><strong>${p.a}</strong></td></tr>`
+                ).join('') || '<tr><td colspan="3" style="color:#666; padding:20px;">No assists logged yet.</td></tr>';
+            } 
+            else {
+                let selectedTeam = document.getElementById('teamFilter').value;
+                document.getElementById('teamTitle').innerText = selectedTeam ? `${selectedTeam} Roster Metrics` : 'Select a team';
+                let tbody = document.getElementById('teamRosterStats');
+                
+                if(!selectedTeam) { 
+                    tbody.innerHTML = '<tr><td colspan="4" style="color:#666; padding:20px;">Choose a team from the dropdown above to filter stats.</td></tr>'; 
+                    return; 
+                }
+
+                let teamPlayers = Object.entries(stats)
+                    .filter(([name, data]) => data.team === selectedTeam)
+                    .map(([name, data]) => ({ name, ...data }))
+                    .sort((a, b) => (b.g + b.a) - (a.g + a.a));
+
+                tbody.innerHTML = teamPlayers.map(p => 
+                    `<tr>
+                        <td class="text-left"><strong>${p.name}</strong></td>
+                        <td>${p.g}</td>
+                        <td>${p.a}</td>
+                        <td><strong>${p.g + p.a}</strong></td>
+                    </tr>`
+                ).join('') || '<tr><td colspan="4" style="color:#666; padding:20px;">No registered players found for this team.</td></tr>';
+            }
+        }
+
+        init();
     </script>
 </body>
 </html>
