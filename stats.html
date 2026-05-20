@@ -34,8 +34,9 @@
     <div class="card controls">
         <strong>View Mode:</strong>
         <select id="viewMode" onchange="toggleView()">
-            <option value="overall">Overall Tournament Leaders</option>
-            <option value="team">Roster Breakdown by Team</option>
+            <option value="players">Top Players (Scorers & Assists)</option>
+            <option value="teams">Top Teams (Attack & Defense)</option>
+            <option value="roster">Roster Breakdown</option>
         </select>
         
         <select id="teamFilter" style="display:none;" onchange="renderStats()">
@@ -43,17 +44,17 @@
         </select>
     </div>
 
-    <!-- OVERALL VIEW -->
-    <div id="overallView" class="grid-2">
+    <!-- PLAYER LEADERBOARDS -->
+    <div id="playerView" class="grid-2">
         <div class="card">
-            <h3>⚽ Golden Boot (Top Scorers)</h3>
+            <h3>⚽ Golden Boot</h3>
             <table>
                 <thead><tr><th class="text-left">Player</th><th class="text-left">Team</th><th>G</th></tr></thead>
                 <tbody id="topScorers"></tbody>
             </table>
         </div>
         <div class="card">
-            <h3>👟 Top Playmakers (Assists)</h3>
+            <h3>👟 Top Playmakers</h3>
             <table>
                 <thead><tr><th class="text-left">Player</th><th class="text-left">Team</th><th>A</th></tr></thead>
                 <tbody id="topAssists"></tbody>
@@ -61,8 +62,26 @@
         </div>
     </div>
 
-    <!-- TEAM VIEW -->
-    <div id="teamView" class="card" style="display:none;">
+    <!-- TEAM LEADERBOARDS -->
+    <div id="teamsView" class="grid-2" style="display:none;">
+        <div class="card">
+            <h3>🔥 Best Attack (Goals For)</h3>
+            <table>
+                <thead><tr><th>Rank</th><th class="text-left">Team</th><th>GF</th></tr></thead>
+                <tbody id="bestAttack"></tbody>
+            </table>
+        </div>
+        <div class="card">
+            <h3>🛡️ Most Solid Defense (Goals Against)</h3>
+            <table>
+                <thead><tr><th>Rank</th><th class="text-left">Team</th><th>GA</th></tr></thead>
+                <tbody id="bestDefense"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TEAM ROSTER VIEW -->
+    <div id="rosterView" class="card" style="display:none;">
         <h3 id="teamTitle">Team Stats</h3>
         <table>
             <thead><tr><th class="text-left">Player</th><th>Goals</th><th>Assists</th><th>Total Contributions</th></tr></thead>
@@ -81,21 +100,18 @@
 
         function toggleView() {
             let mode = document.getElementById('viewMode').value;
-            document.getElementById('teamFilter').style.display = mode === 'team' ? 'block' : 'none';
-            document.getElementById('overallView').style.display = mode === 'overall' ? 'grid' : 'none';
-            document.getElementById('teamView').style.display = mode === 'team' ? 'block' : 'none';
+            document.getElementById('teamFilter').style.display = mode === 'roster' ? 'block' : 'none';
+            document.getElementById('playerView').style.display = mode === 'players' ? 'grid' : 'none';
+            document.getElementById('teamsView').style.display = mode === 'teams' ? 'grid' : 'none';
+            document.getElementById('rosterView').style.display = mode === 'roster' ? 'block' : 'none';
             renderStats();
         }
 
         function getPlayerStats() {
             let pStats = {};
-            
-            // Initialize all registered players
             Object.entries(db.teams).forEach(([teamName, players]) => {
                 players.forEach(p => pStats[p] = { team: teamName, g: 0, a: 0 });
             });
-
-            // Tally metrics from saved match histories
             db.matches.forEach(m => {
                 m.events.forEach(ev => {
                     if(ev.scorer) {
@@ -111,14 +127,33 @@
             return pStats;
         }
 
+        function getTeamStats() {
+            let tStats = {};
+            // Initialize teams
+            Object.keys(db.teams).forEach(t => tStats[t] = { gf: 0, ga: 0, gp: 0, name: t });
+            
+            // Tally goals from league matches
+            db.matches.filter(m => m.type === 'league').forEach(m => {
+                if(!tStats[m.teamA]) tStats[m.teamA] = { gf:0, ga:0, gp:0, name: m.teamA };
+                if(!tStats[m.teamB]) tStats[m.teamB] = { gf:0, ga:0, gp:0, name: m.teamB };
+                
+                tStats[m.teamA].gp++; tStats[m.teamB].gp++;
+                tStats[m.teamA].gf += m.scoreA; tStats[m.teamA].ga += m.scoreB;
+                tStats[m.teamB].gf += m.scoreB; tStats[m.teamB].ga += m.scoreA;
+            });
+            
+            // Return only teams that have played at least 1 game
+            return Object.values(tStats).filter(t => t.gp > 0);
+        }
+
         function renderStats() {
-            let stats = getPlayerStats();
             let mode = document.getElementById('viewMode').value;
 
-            if(mode === 'overall') {
+            if(mode === 'players') {
+                let stats = getPlayerStats();
                 let arr = Object.entries(stats).map(([name, data]) => ({ name, ...data }));
-                let scorers = [...arr].sort((a, b) => b.g - a.g).filter(p => p.g > 0).slice(0, 15);
-                let assists = [...arr].sort((a, b) => b.a - a.a).filter(p => p.a > 0).slice(0, 15);
+                let scorers = [...arr].sort((a, b) => b.g - a.g).filter(p => p.g > 0).slice(0, 10);
+                let assists = [...arr].sort((a, b) => b.a - a.a).filter(p => p.a > 0).slice(0, 10);
 
                 document.getElementById('topScorers').innerHTML = scorers.map(p => 
                     `<tr><td class="text-left"><strong>${p.name}</strong></td><td class="text-left" style="font-size:0.85rem; color:#666;">${p.team}</td><td><strong>${p.g}</strong></td></tr>`
@@ -128,7 +163,22 @@
                     `<tr><td class="text-left"><strong>${p.name}</strong></td><td class="text-left" style="font-size:0.85rem; color:#666;">${p.team}</td><td><strong>${p.a}</strong></td></tr>`
                 ).join('') || '<tr><td colspan="3" style="color:#666; padding:20px;">No assists logged yet.</td></tr>';
             } 
-            else {
+            else if(mode === 'teams') {
+                let teamStats = getTeamStats();
+                
+                let attack = [...teamStats].sort((a, b) => b.gf - a.gf).slice(0, 5);
+                let defense = [...teamStats].sort((a, b) => a.ga - b.ga).slice(0, 5);
+
+                document.getElementById('bestAttack').innerHTML = attack.map((t, i) => 
+                    `<tr><td>${i+1}</td><td class="text-left"><strong>${t.name}</strong></td><td><strong style="color:var(--primary);">${t.gf}</strong></td></tr>`
+                ).join('') || '<tr><td colspan="3" style="color:#666; padding:20px;">No matches played yet.</td></tr>';
+
+                document.getElementById('bestDefense').innerHTML = defense.map((t, i) => 
+                    `<tr><td>${i+1}</td><td class="text-left"><strong>${t.name}</strong></td><td><strong style="color:#10b981;">${t.ga}</strong></td></tr>`
+                ).join('') || '<tr><td colspan="3" style="color:#666; padding:20px;">No matches played yet.</td></tr>';
+            }
+            else if (mode === 'roster') {
+                let stats = getPlayerStats();
                 let selectedTeam = document.getElementById('teamFilter').value;
                 document.getElementById('teamTitle').innerText = selectedTeam ? `${selectedTeam} Roster Metrics` : 'Select a team';
                 let tbody = document.getElementById('teamRosterStats');
