@@ -27,6 +27,11 @@
         .top-two { background: #ecfdf5; }
         .schedule-list { max-height: 300px; overflow-y: auto; font-size: 0.85rem; }
         .schedule-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid var(--border); align-items: center; }
+        
+        /* New Roster Styles */
+        details { background: #f9fafb; padding: 10px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 10px; }
+        summary { font-weight: bold; cursor: pointer; padding: 5px 0; outline: none; }
+        .player-row { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 8px; margin-bottom: 5px; border: 1px solid var(--border); border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -40,19 +45,18 @@
         <div class="card">
             <h2>1. Teams & Rosters</h2>
             <div style="display: flex; gap: 10px;">
-                <input type="text" id="newTeam" placeholder="Team Name">
+                <input type="text" id="newTeam" placeholder="New Team Name">
                 <button class="btn-small" onclick="addTeam()">Add</button>
             </div>
+            <p style="font-size: 0.8rem; color: #6b7280;">Click a team below to view and edit its roster.</p>
             <div id="teamsContainer" style="margin-top: 10px;"></div>
             
-            <!-- NEW WIPE BUTTON -->
-            <button class="btn-danger" onclick="clearAllData()">🗑️ Wipe All Teams & Data</button>
+            <button class="btn-danger" onclick="clearAllData()">🗑️ Wipe All Tournament Data</button>
         </div>
 
         <div class="card">
             <h2>2. Schedule (Double Round-Robin)</h2>
             <button onclick="generateSchedule()">Generate Random Schedule</button>
-            <p style="font-size: 0.8rem; color: #6b7280; text-align:center;">Generates home & away matches for all entered teams.</p>
             <div class="schedule-list" id="scheduleContainer"></div>
         </div>
     </div>
@@ -81,34 +85,61 @@
 
     <script>
         let db = JSON.parse(localStorage.getItem('proTournamentDb')) || { teams: {}, matches: [], schedule: [] };
-
         function saveDb() { localStorage.setItem('proTournamentDb', JSON.stringify(db)); updateUI(); }
 
-        // --- NEW CLEAR DATA FUNCTION ---
         function clearAllData() {
-            if(confirm("🚨 Are you absolutely sure? This will delete all teams, players, schedule, and match results forever.")) {
-                db = { teams: {}, matches: [], schedule: [] };
-                saveDb();
+            if(confirm("🚨 Are you absolutely sure? This deletes ALL teams, players, and matches.")) {
+                db = { teams: {}, matches: [], schedule: [] }; saveDb();
             }
         }
 
-        // --- TEAMS ---
+        // --- TEAM & PLAYER MANAGEMENT ---
         function addTeam() {
             let name = document.getElementById('newTeam').value.trim();
             if (name && !db.teams[name]) { db.teams[name] = []; document.getElementById('newTeam').value = ''; saveDb(); }
         }
+        function removeTeam(team) {
+            if(confirm(`Delete team "${team}"? Match history will remain but team gets deleted.`)) {
+                delete db.teams[team]; saveDb();
+            }
+        }
         function addPlayer(team) {
-            let pName = document.getElementById(`p_${team}`).value.trim();
+            let pName = document.getElementById(`p_${team.replace(/\s+/g, '')}`).value.trim();
             if (pName && !db.teams[team].includes(pName)) { db.teams[team].push(pName); saveDb(); }
+        }
+        function removePlayer(team, player) {
+            if(confirm(`Remove ${player} from ${team}?`)) {
+                db.teams[team] = db.teams[team].filter(p => p !== player); saveDb();
+            }
+        }
+        function editPlayer(team, oldName) {
+            let newName = prompt(`Edit name for ${oldName}:`, oldName);
+            if(newName && newName.trim() !== "" && newName !== oldName) {
+                newName = newName.trim();
+                let idx = db.teams[team].indexOf(oldName);
+                if(idx !== -1) {
+                    db.teams[team][idx] = newName;
+                    // Update past matches so stats stay connected to the new name
+                    db.matches.forEach(m => {
+                        m.events.forEach(ev => {
+                            if(ev.team === team) {
+                                if(ev.scorer === oldName) ev.scorer = newName;
+                                if(ev.assist === oldName) ev.assist = newName;
+                            }
+                        });
+                    });
+                    saveDb();
+                }
+            }
         }
 
         // --- SCHEDULE ---
         function generateSchedule() {
             let teams = Object.keys(db.teams);
-            if (teams.length < 2) return alert("Add at least 2 teams first.");
+            if (teams.length < 2) return alert("Add at least 2 teams.");
             if (db.schedule.length > 0 && !confirm("Overwrite existing schedule?")) return;
             
-            teams.sort(() => Math.random() - 0.5); // Shuffle
+            teams.sort(() => Math.random() - 0.5);
             let rounds = [], dummy = teams.length % 2 !== 0;
             let pTeams = [...teams];
             if (dummy) pTeams.push(null);
@@ -124,7 +155,6 @@
                 pTeams.splice(1, 0, pTeams.pop());
             }
             
-            // Double round robin (Home & Away)
             let secondHalf = rounds.map(r => r.map(m => ({ tA: m.tB, tB: m.tA })));
             db.schedule = [...rounds.flat(), ...secondHalf.flat()];
             saveDb();
@@ -150,7 +180,7 @@
             if (!team || score === 0) return box.innerHTML = '';
             
             let opts = `<option value="">- Player -</option>` + (db.teams[team] || []).map(p => `<option value="${p}">${p}</option>`).join('');
-            let html = `<h4 style="margin:5px 0;">⚽ ${team}</h4>`;
+            let html = `<h4 style="margin:5px 0;">⚽ ${team} Goals</h4>`;
             for(let i=0; i<score; i++) {
                 html += `<div style="display:flex; gap:5px; margin-bottom:5px;">
                     <select class="sc-${side}">${opts}</select><select class="as-${side}"><option value="">- Assist -</option>${opts.replace('- Player -', '')}</select>
@@ -164,16 +194,26 @@
             let sA = parseInt(document.getElementById('scoreA').value) || 0, sB = parseInt(document.getElementById('scoreB').value) || 0;
             if(!tA || !tB || tA===tB) return alert("Select valid teams.");
 
-            let events = [];
+            let events = [], selfAssistError = false;
+            
             const getEvts = (side, team) => {
                 let scs = document.querySelectorAll(`.sc-${side}`), asts = document.querySelectorAll(`.as-${side}`);
-                scs.forEach((sc, i) => { if(sc.value) events.push({ team, scorer: sc.value, assist: asts[i].value || null }); });
+                scs.forEach((sc, i) => { 
+                    if(sc.value) {
+                        // SELF-ASSIST CHECK
+                        if(sc.value === asts[i].value) { selfAssistError = true; }
+                        events.push({ team, scorer: sc.value, assist: asts[i].value || null }); 
+                    }
+                });
             };
             getEvts('A', tA); getEvts('B', tB);
 
+            if(selfAssistError) {
+                return alert("A player cannot assist their own goal! Please fix the goal details.");
+            }
+
             db.matches.push({ type: document.getElementById('matchType').value, teamA: tA, teamB: tB, scoreA: sA, scoreB: sB, events });
             
-            // Remove from schedule if it was a scheduled match
             let sIdx = document.getElementById('matchEntryTitle').dataset.scheduleIdx;
             if(sIdx !== undefined) {
                 db.schedule.splice(sIdx, 1);
@@ -185,21 +225,40 @@
             updateGoals(); saveDb();
         }
 
-        // --- STANDINGS & UI ---
+        // --- UI RENDERING ---
         function updateUI() {
-            // Teams
             let tBox = document.getElementById('teamsContainer'), sA = document.getElementById('teamA'), sB = document.getElementById('teamB');
             tBox.innerHTML = ''; sA.innerHTML = '<option value="">Home Team</option>'; sB.innerHTML = '<option value="">Away Team</option>';
             
+            // Render Collapsible Team Rosters
             Object.entries(db.teams).forEach(([t, p]) => {
-                tBox.innerHTML += `<div style="border-bottom:1px solid #ddd; padding-bottom:10px; margin-bottom:10px;">
-                    <strong>${t}</strong> <span style="font-size:0.8rem; color:#666;">(${p.length} players)</span>
-                    <div style="display:flex; gap:5px; margin-top:5px;"><input type="text" id="p_${t}" placeholder="Player name"><button class="btn-small" onclick="addPlayer('${t}')">+</button></div>
-                </div>`;
+                let safeT = t.replace(/\s+/g, '');
+                let playersHtml = p.map(player => `
+                    <div class="player-row">
+                        <span>${player}</span>
+                        <div>
+                            <button class="btn-small" style="background:#f59e0b;" onclick="editPlayer('${t}', '${player}')">✏️</button>
+                            <button class="btn-small" style="background:var(--danger);" onclick="removePlayer('${t}', '${player}')">❌</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                tBox.innerHTML += `
+                    <details>
+                        <summary>${t} <span style="font-size:0.8rem; font-weight:normal; color:#666;">(${p.length} players)</span></summary>
+                        <div style="margin-top: 10px;">
+                            ${playersHtml}
+                            <div style="display:flex; gap:5px; margin-top:10px;">
+                                <input type="text" id="p_${safeT}" placeholder="Add player name" style="margin:0;">
+                                <button class="btn-small" onclick="addPlayer('${t}')">+</button>
+                            </div>
+                            <button onclick="removeTeam('${t}')" style="background:none; color:var(--danger); border:none; padding:0; margin-top:15px; text-decoration:underline; width:auto;">Delete Entire Team</button>
+                        </div>
+                    </details>
+                `;
                 sA.innerHTML += `<option value="${t}">${t}</option>`; sB.innerHTML += `<option value="${t}">${t}</option>`;
             });
 
-            // Schedule
             let schedBox = document.getElementById('scheduleContainer');
             schedBox.innerHTML = db.schedule.length === 0 ? '<p style="text-align:center; color:#666;">No matches scheduled.</p>' : '';
             db.schedule.forEach((m, i) => {
@@ -207,7 +266,7 @@
                 <button class="btn-small" style="background:#10b981;" onclick="loadScheduledMatch(${i})">Play</button></div>`;
             });
 
-            // Standings
+            // Standings Logic (unchanged tiebreakers)
             let stats = {};
             Object.keys(db.teams).forEach(t => stats[t] = { p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, name: t });
             let lm = db.matches.filter(m => m.type === 'league');
@@ -225,7 +284,6 @@
             let table = Object.values(stats).sort((a, b) => {
                 if(b.pts !== a.pts) return b.pts - a.pts;
                 if(b.gd !== a.gd) return b.gd - a.gd;
-                
                 let h2hA = 0, h2hB = 0;
                 lm.filter(m => (m.teamA===a.name && m.teamB===b.name) || (m.teamA===b.name && m.teamB===a.name)).forEach(m => {
                     if(m.teamA===a.name) { if(m.scoreA>m.scoreB) h2hA+=3; else if(m.scoreA===m.scoreB){h2hA++; h2hB++;} else h2hB+=3; }
