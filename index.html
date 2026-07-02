@@ -16,17 +16,20 @@
         
         /* Components */
         .card { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;}
-        input, select, button { padding: 10px; border: 1px solid var(--border); border-radius: 4px; width: 100%; box-sizing: border-box; margin-bottom: 10px; font-size: 1rem; }
+        input, select, button { padding: 12px; border: 1px solid var(--border); border-radius: 6px; width: 100%; box-sizing: border-box; margin-bottom: 15px; font-size: 1rem; }
         button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background: var(--hover); }
-        .btn-small { width: auto; padding: 5px 10px; font-size: 0.85rem; }
+        .btn-small { width: auto; padding: 8px 12px; font-size: 0.85rem; margin-bottom: 0; }
         .btn-danger { background: var(--danger); } .btn-danger:hover { background: #dc2626; }
         .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+        .btn-outline:hover { background: #eff6ff; }
+        
+        .splash-btn { padding: 20px; font-size: 1.2rem; display: flex; flex-direction: column; align-items: center; gap: 10px; border-radius: 12px; }
         
         /* Tables */
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 15px; }
-        th, td { padding: 8px; text-align: center; border-bottom: 1px solid var(--border); }
-        th { background: #f9fafb; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid var(--border); }
+        th { background: #f9fafb; font-weight: 600; }
         .text-left { text-align: left; }
         .playoff-zone { border-left: 4px solid #10b981; background: #ecfdf5; }
         
@@ -47,30 +50,34 @@
         details { background: #f9fafb; padding: 10px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 10px; }
         summary { font-weight: bold; cursor: pointer; padding: 5px 0; }
         
-        /* Modal */
-        .modal-bg { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; place-items:center; z-index: 100; }
-        .modal { background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; }
-        
         /* Champion Banner */
         .winner-banner { background: linear-gradient(135deg, #f59e0b, #fbbf24); padding: 30px; border-radius: 12px; text-align: center; color: white; margin-bottom: 20px; box-shadow: 0 10px 25px rgba(245, 158, 11, 0.3); }
+        
+        /* View Management */
+        .view { display: none; }
+        .view.active { display: block; }
     </style>
 </head>
 <body>
 
-    <!-- LOBBY VIEW -->
-    <div id="view-lobby">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h1>🏟️ Tournament Hub</h1>
-            <button class="btn-small" style="padding: 10px 20px;" onclick="showModal('createModal')">+ New Tournament</button>
+    <!-- 1. SPLASH / HOME SCREEN -->
+    <div id="view-splash" class="view active">
+        <h1 style="font-size: 2.5rem; margin-top: 40px; margin-bottom: 40px;">🏆 Tournament Platform</h1>
+        
+        <div class="grid-2" style="max-width: 700px; margin: 0 auto; margin-bottom: 50px;">
+            <button class="splash-btn" onclick="showView('view-create')">
+                <span style="font-size: 2rem;">🆕</span>
+                <span>Create New Tournament</span>
+            </button>
+            <button class="splash-btn btn-outline" onclick="showView('view-lobby')">
+                <span style="font-size: 2rem;">📂</span>
+                <span>Continue Old Tournament</span>
+            </button>
         </div>
 
-        <input type="text" id="searchBar" placeholder="🔍 Search tournaments by name..." onkeyup="renderLobby()">
-
-        <div id="tourneyGrid" class="grid-3" style="margin-top: 20px;"></div>
-
-        <div class="card" style="margin-top: 40px; border-top: 4px solid var(--primary);">
+        <div class="card" style="border-top: 4px solid var(--primary);">
             <h2>🌟 All-Time Hall of Fame</h2>
-            <p style="text-align:center; font-size:0.85rem; color:#666; margin-top:-10px;">Aggregated stats across every tournament in history.</p>
+            <p style="text-align:center; font-size:0.85rem; color:#666; margin-top:-10px; margin-bottom: 20px;">Aggregated stats across every tournament ever played.</p>
             <div class="grid-2">
                 <div>
                     <h3>⚽ All-Time Top Scorers</h3>
@@ -84,11 +91,47 @@
         </div>
     </div>
 
-    <!-- TOURNAMENT VIEW -->
-    <div id="view-tournament" style="display:none;">
+    <!-- 2. CREATE TOURNAMENT SCREEN -->
+    <div id="view-create" class="view" style="max-width: 600px; margin: 40px auto;">
+        <button class="btn-outline btn-small" onclick="showView('view-splash')" style="margin-bottom: 20px;">⬅ Back to Home</button>
+        <div class="card">
+            <h2 style="margin-top: 0;">Create Tournament</h2>
+            
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Tournament Name</label>
+            <input type="text" id="newTName" placeholder="e.g. Summer Cup 2026">
+            
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Competition Format</label>
+            <select id="newTFormat" onchange="togglePlayoffZone()">
+                <option value="table">Table (League Only)</option>
+                <option value="table_playoffs">Table + Playoffs</option>
+                <option value="bracket">Pure Knockout Bracket</option>
+            </select>
+            
+            <div id="playoffZoneDiv" style="display:none; background: #f9fafb; padding: 15px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 15px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px;">Playoff Qualification Zone</label>
+                <p style="font-size: 0.85rem; color: #666; margin-top: 0;">How many teams advance from the league table to the knockout stage?</p>
+                <input type="number" id="newTZone" placeholder="e.g., 4" value="4" min="2" style="margin-bottom: 0;">
+            </div>
+            
+            <button onclick="submitNewTournament()" style="padding: 15px; font-size: 1.1rem; margin-top: 10px;">Create & Start Setup</button>
+        </div>
+    </div>
+
+    <!-- 3. LOAD EXISTING TOURNAMENT (LOBBY) -->
+    <div id="view-lobby" class="view">
+        <button class="btn-outline btn-small" onclick="showView('view-splash')" style="margin-bottom: 20px;">⬅ Back to Home</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1 style="margin: 0;">📂 Select Tournament</h1>
+        </div>
+        <input type="text" id="searchBar" placeholder="🔍 Search tournaments by name..." onkeyup="renderLobbyGrid()">
+        <div id="tourneyGrid" class="grid-3" style="margin-top: 20px;"></div>
+    </div>
+
+    <!-- 4. ACTIVE TOURNAMENT VIEW -->
+    <div id="view-tournament" class="view">
         <div class="nav-bar">
-            <button class="btn-outline btn-small" onclick="closeTournament()">⬅ Back to Hub</button>
-            <h2 id="tHeaderName" style="margin:0; font-size:1.2rem;">Tournament Name</h2>
+            <button class="btn-outline btn-small" onclick="closeTournament()" style="margin:0;">⬅ Home</button>
+            <h2 id="tHeaderName" style="margin:0; font-size:1.3rem;">Tournament Name</h2>
             <div class="nav-tabs">
                 <div class="nav-tab active" id="tab-manage" onclick="switchTab('manage')">Manager</div>
                 <div class="nav-tab" id="tab-stats" onclick="switchTab('stats')">Season Stats</div>
@@ -109,10 +152,10 @@
                 <div class="card">
                     <h2>Teams & Rosters</h2>
                     <div id="addTeamSection" style="display: flex; gap: 10px;">
-                        <input type="text" id="newTeam" placeholder="New Team Name">
-                        <button class="btn-small" onclick="addTeam()">Add</button>
+                        <input type="text" id="newTeam" placeholder="New Team Name" style="margin:0;">
+                        <button class="btn-small" onclick="addTeam()" style="padding:0 20px;">Add</button>
                     </div>
-                    <p id="rosterWarning" style="font-size: 0.8rem; color: #6b7280;">Add teams to generate schedule.</p>
+                    <p id="rosterWarning" style="font-size: 0.8rem; color: #6b7280;">Add teams to generate the schedule.</p>
                     <div id="teamsContainer"></div>
                 </div>
 
@@ -179,74 +222,29 @@
         </div>
     </div>
 
-    <!-- CREATE TOURNAMENT MODAL -->
-    <div id="createModal" class="modal-bg">
-        <div class="modal">
-            <h2>Create Tournament</h2>
-            <input type="text" id="newTName" placeholder="Tournament Name (e.g. Summer Cup)">
-            <select id="newTFormat" onchange="togglePlayoffZone()">
-                <option value="table">Table (League Only)</option>
-                <option value="table_playoffs">Table + Playoffs</option>
-                <option value="bracket">Pure Knockout Bracket</option>
-            </select>
-            <div id="playoffZoneDiv" style="display:none;">
-                <label style="font-size: 0.85rem; color: #666;">Top X teams advance to Playoffs:</label>
-                <input type="number" id="newTZone" placeholder="e.g., 4" value="4" min="2">
-            </div>
-            <div style="display:flex; gap:10px; margin-top:15px;">
-                <button onclick="submitNewTournament()">Create</button>
-                <button class="btn-outline" onclick="hideModal('createModal')">Cancel</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         // --- DATABASE INIT ---
         let appDb = JSON.parse(localStorage.getItem('ultimatePlatformDb')) || { tournaments: [] };
-        let activeT = null; // Pointer to the currently opened tournament
+        let activeT = null; 
         let activeMatchIdx = 0;
 
         function saveApp() { localStorage.setItem('ultimatePlatformDb', JSON.stringify(appDb)); }
 
-        // --- LOBBY LOGIC ---
-        function initLobby() {
-            document.getElementById('view-lobby').style.display = 'block';
-            document.getElementById('view-tournament').style.display = 'none';
-            activeT = null;
-            renderLobby();
-            renderAllTimeStats();
-        }
-
-        function renderLobby() {
-            let search = document.getElementById('searchBar').value.toLowerCase();
-            let grid = document.getElementById('tourneyGrid');
-            grid.innerHTML = '';
+        // --- VIEW ROUTING ---
+        function showView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
             
-            let filtered = appDb.tournaments.filter(t => t.name.toLowerCase().includes(search));
-            
-            if(filtered.length === 0) {
-                grid.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color:#6b7280;">No tournaments found. Create one to get started!</p>`;
-                return;
+            if (viewId === 'view-splash') renderAllTimeStats();
+            if (viewId === 'view-lobby') renderLobbyGrid();
+            if (viewId === 'view-create') {
+                document.getElementById('newTName').value = '';
+                document.getElementById('newTFormat').value = 'table';
+                togglePlayoffZone();
             }
-
-            [...filtered].reverse().forEach(t => {
-                let teamsList = Object.keys(t.teams).map(tm => `<span class="bubble">${tm}</span>`).join('') || '<span style="font-size:0.8rem; color:#9ca3af;">No teams added yet.</span>';
-                let fmtText = t.format === 'table' ? 'League' : (t.format === 'bracket' ? 'Knockout' : `League + Top ${t.playoffZone} Playoffs`);
-                let statusBadge = t.status === 'finished' ? '🏆 Finished' : (t.status === 'setup' ? '⚙️ Setup' : '⚽ Active');
-                
-                grid.innerHTML += `
-                    <div class="card" style="cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" onclick="openTournament(${t.id})">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                            <strong style="font-size:1.2rem;">${t.name}</strong>
-                            <span style="font-size:0.8rem; color:#6b7280;">${statusBadge}</span>
-                        </div>
-                        <div style="font-size:0.8rem; color:var(--primary); margin-bottom:10px; font-weight:600;">Format: ${fmtText}</div>
-                        <div>${teamsList}</div>
-                    </div>
-                `;
-            });
         }
 
+        // --- SPLASH & LOBBY LOGIC ---
         function renderAllTimeStats() {
             let pStats = {};
             appDb.tournaments.forEach(t => {
@@ -270,13 +268,50 @@
 
             const buildRow = (p, val) => `<tr><td class="text-left"><strong>${p.name}</strong><br><span style="font-size:0.7rem; color:#6b7280;">Played in ${p.tourneys.size} tournament(s)</span></td><td><strong>${val}</strong></td></tr>`;
             
-            document.getElementById('allTimeScorers').innerHTML = scorers.length ? scorers.map(p => buildRow(p, p.g)).join('') : '<tr><td>No data</td></tr>';
-            document.getElementById('allTimeAssists').innerHTML = assists.length ? assists.map(p => buildRow(p, p.a)).join('') : '<tr><td>No data</td></tr>';
+            document.getElementById('allTimeScorers').innerHTML = scorers.length ? scorers.map(p => buildRow(p, p.g)).join('') : '<tr><td colspan="2">No data yet.</td></tr>';
+            document.getElementById('allTimeAssists').innerHTML = assists.length ? assists.map(p => buildRow(p, p.a)).join('') : '<tr><td colspan="2">No data yet.</td></tr>';
         }
 
-        // --- CREATION MODAL ---
-        function showModal(id) { document.getElementById(id).style.display = 'grid'; }
-        function hideModal(id) { document.getElementById(id).style.display = 'none'; }
+        function renderLobbyGrid() {
+            let search = document.getElementById('searchBar').value.toLowerCase();
+            let grid = document.getElementById('tourneyGrid');
+            grid.innerHTML = '';
+            
+            let filtered = appDb.tournaments.filter(t => t.name.toLowerCase().includes(search));
+            
+            if(filtered.length === 0) {
+                grid.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color:#6b7280;">No tournaments found.</p>`;
+                return;
+            }
+
+            [...filtered].reverse().forEach(t => {
+                let teamsList = Object.keys(t.teams).map(tm => `<span class="bubble">${tm}</span>`).join('') || '<span style="font-size:0.8rem; color:#9ca3af;">No teams added yet.</span>';
+                let fmtText = t.format === 'table' ? 'League Only' : (t.format === 'bracket' ? 'Pure Knockout' : `League + Top ${t.playoffZone} Playoffs`);
+                let statusBadge = t.status === 'finished' ? '🏆 Finished' : (t.status === 'setup' ? '⚙️ Setup' : '⚽ Active');
+                
+                grid.innerHTML += `
+                    <div class="card" style="cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" onclick="openTournament(${t.id})">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                            <strong style="font-size:1.2rem;">${t.name}</strong>
+                            <span style="font-size:0.8rem; color:#6b7280;">${statusBadge}</span>
+                        </div>
+                        <div style="font-size:0.8rem; color:var(--primary); margin-bottom:10px; font-weight:600;">Format: ${fmtText}</div>
+                        <div>${teamsList}</div>
+                        <button class="btn-danger btn-small" style="margin-top: 15px; width: 100%;" onclick="event.stopPropagation(); deleteTournament(${t.id})">Delete</button>
+                    </div>
+                `;
+            });
+        }
+
+        function deleteTournament(id) {
+            if(confirm("Are you sure you want to permanently delete this tournament?")) {
+                appDb.tournaments = appDb.tournaments.filter(t => t.id !== id);
+                saveApp();
+                renderLobbyGrid();
+            }
+        }
+
+        // --- CREATION LOGIC ---
         function togglePlayoffZone() {
             let fmt = document.getElementById('newTFormat').value;
             document.getElementById('playoffZoneDiv').style.display = fmt === 'table_playoffs' ? 'block' : 'none';
@@ -284,15 +319,13 @@
 
         function submitNewTournament() {
             let name = document.getElementById('newTName').value.trim();
-            if(!name) return alert("Please enter a name.");
+            if(!name) return alert("Please enter a Tournament Name.");
             let fmt = document.getElementById('newTFormat').value;
             let zone = parseInt(document.getElementById('newTZone').value) || 4;
             
             let newT = { id: Date.now(), name, format: fmt, playoffZone: zone, status: 'setup', teams: {}, matches: [], schedule: [], winner: null };
             appDb.tournaments.push(newT);
             saveApp();
-            hideModal('createModal');
-            document.getElementById('newTName').value = '';
             openTournament(newT.id);
         }
 
@@ -301,15 +334,15 @@
             activeT = appDb.tournaments.find(t => t.id === id);
             if(!activeT) return;
             
-            document.getElementById('view-lobby').style.display = 'none';
-            document.getElementById('view-tournament').style.display = 'block';
+            showView('view-tournament');
             document.getElementById('tHeaderName').innerText = activeT.name;
             activeMatchIdx = 0;
             switchTab('manage');
             refreshTUI();
         }
 
-        function closeTournament() { saveApp(); initLobby(); }
+        function closeTournament() { saveApp(); showView('view-splash'); }
+        
         function switchTab(tab) {
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
             document.getElementById(`tab-${tab}`).classList.add('active');
@@ -343,7 +376,6 @@
                 activeT.schedule = [];
                 for(let i=0; i<teams.length; i+=2) {
                     if(teams[i+1]) activeT.schedule.push({ tA: teams[i], tB: teams[i+1], type: 'knockout' });
-                    // Handling uneven teams (byes) is skipped for simplicity. Assume even numbers.
                 }
             } else {
                 // Generate Double Round Robin
@@ -376,41 +408,30 @@
                     activeT.schedule = [{ tA: qualified[0], tB: qualified[1], type: 'final' }];
                     activeT.status = 'playoffs';
                 } else if(qualified.length >= 4) {
-                    // Semifinals (1v4, 2v3)
                     activeT.schedule = [
                         { tA: qualified[0], tB: qualified[3], type: 'semifinal' },
                         { tA: qualified[1], tB: qualified[2], type: 'semifinal' }
                     ];
                     activeT.status = 'playoffs';
                 } else {
-                    alert("Not enough teams to form playoffs. Ending tournament.");
+                    alert("Not enough teams to form playoffs. Ending tournament as League.");
                     activeT.status = 'finished';
                     activeT.winner = qualified[0];
                 }
             }
             else if (activeT.format === 'bracket' || activeT.status === 'playoffs') {
-                // Look at recent knockout winners to build next round
                 let recentType = activeT.matches[activeT.matches.length-1].type;
                 if(recentType === 'final') {
                     activeT.status = 'finished';
-                    // winner is determined in saveMatch
                 } else {
-                    // Collect winners of the current phase
-                    let winners = [];
-                    // Simple heuristic: get last N matches where N is number of matches in previous round
-                    // For a robust system, we track bracket nodes, but for a single file, we dynamically pair the last un-paired winners.
-                    // To simplify: if schedule is empty during 'playoffs' or 'bracket', take the winners of the matches just played.
                     let phaseMatches = activeT.matches.filter(m => m.type === recentType);
                     let phaseWinners = phaseMatches.map(m => m.scoreA > m.scoreB ? m.teamA : m.teamB);
-                    
-                    // We only want the *recent* wave of winners.
-                    // If we had 2 semifinals, we pair the last 2 winners for the final.
                     let queue = phaseWinners.slice(-2); 
                     
                     if(queue.length === 2) {
                         activeT.schedule.push({ tA: queue[0], tB: queue[1], type: recentType === 'semifinal' ? 'final' : 'next_round' });
                     } else {
-                         activeT.status = 'finished'; // Failsafe
+                         activeT.status = 'finished';
                     }
                 }
             }
@@ -492,6 +513,8 @@
 
             // Teams Container
             document.getElementById('addTeamSection').style.display = activeT.status === 'setup' ? 'flex' : 'none';
+            document.getElementById('rosterWarning').innerText = activeT.status === 'setup' ? 'Add teams to auto-generate the schedule.' : 'Tournament in progress. Rosters are locked.';
+
             let tBox = document.getElementById('teamsContainer'); tBox.innerHTML = '';
             Object.entries(activeT.teams).forEach(([t, p]) => {
                 let html = p.map(player => `<div class="list-item"><span>${player}</span></div>`).join('');
@@ -509,7 +532,7 @@
                     let isNext = i === activeMatchIdx;
                     schedBox.innerHTML += `<div class="list-item" style="${isNext ? 'border-left:4px solid var(--primary); background:#eff6ff;' : ''}">
                         <div>${badge} <strong>${m.tA}</strong> vs <strong>${m.tB}</strong></div>
-                        ${isNext ? '<span style="font-size:0.8rem; color:var(--primary); font-weight:bold;">UP NEXT</span>' : `<button class="btn-small btn-outline" onclick="activeMatchIdx=${i}; refreshTUI();">Play</button>`}
+                        ${isNext ? '<span style="font-size:0.8rem; color:var(--primary); font-weight:bold;">UP NEXT</span>' : `<button class="btn-small btn-outline" style="margin:0;" onclick="activeMatchIdx=${i}; refreshTUI();">Play</button>`}
                     </div>`;
                 });
             }
@@ -581,7 +604,6 @@
             document.getElementById('seasonScorers').innerHTML = scorers.map(p => `<tr><td class="text-left"><strong>${p.name}</strong></td><td class="text-left" style="font-size:0.8rem; color:#666;">${p.team}</td><td><strong>${p.g}</strong></td></tr>`).join('') || '<tr><td colspan="3">No goals logged.</td></tr>';
             document.getElementById('seasonAssists').innerHTML = assists.map(p => `<tr><td class="text-left"><strong>${p.name}</strong></td><td class="text-left" style="font-size:0.8rem; color:#666;">${p.team}</td><td><strong>${p.a}</strong></td></tr>`).join('') || '<tr><td colspan="3">No assists logged.</td></tr>';
 
-            // Filter Dropdown update
             let filter = document.getElementById('teamFilter');
             let currentFilter = filter.value;
             filter.innerHTML = '<option value="">Select a Team...</option>';
@@ -595,7 +617,7 @@
         }
 
         // Start
-        initLobby();
+        showView('view-splash');
     </script>
 </body>
 </html>
