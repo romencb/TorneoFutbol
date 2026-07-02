@@ -40,7 +40,7 @@
         .badge-knockout { background: #fef3c7; color: #b45309; }
         
         /* Navigation */
-        .nav-bar { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .nav-bar { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 10px; }
         .nav-tabs { display: flex; gap: 15px; }
         .nav-tab { cursor: pointer; font-weight: bold; color: #6b7280; padding-bottom: 5px; border-bottom: 3px solid transparent; }
         .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
@@ -50,6 +50,10 @@
         details { background: #f9fafb; padding: 10px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 10px; }
         summary { font-weight: bold; cursor: pointer; padding: 5px 0; }
         
+        /* Modal */
+        .modal-bg { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; place-items:center; z-index: 100; }
+        .modal { background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; }
+
         /* Champion Banner */
         .winner-banner { background: linear-gradient(135deg, #f59e0b, #fbbf24); padding: 30px; border-radius: 12px; text-align: center; color: white; margin-bottom: 20px; box-shadow: 0 10px 25px rgba(245, 158, 11, 0.3); }
         
@@ -74,21 +78,6 @@
                 <span>Continue Old Tournament</span>
             </button>
         </div>
-
-        <div class="card" style="border-top: 4px solid var(--primary);">
-            <h2>🌟 All-Time Hall of Fame</h2>
-            <p style="text-align:center; font-size:0.85rem; color:#666; margin-top:-10px; margin-bottom: 20px;">Aggregated stats across every tournament ever played.</p>
-            <div class="grid-2">
-                <div>
-                    <h3>⚽ All-Time Top Scorers</h3>
-                    <table id="allTimeScorers"></table>
-                </div>
-                <div>
-                    <h3>👟 All-Time Playmakers (Assists)</h3>
-                    <table id="allTimeAssists"></table>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- 2. CREATE TOURNAMENT SCREEN -->
@@ -100,8 +89,8 @@
             <label style="font-weight: bold; display: block; margin-bottom: 5px;">Tournament Name</label>
             <input type="text" id="newTName" placeholder="e.g. Summer Cup 2026">
             
-            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Competition Format</label>
-            <select id="newTFormat" onchange="togglePlayoffZone()">
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Season 1 Format</label>
+            <select id="newTFormat" onchange="togglePlayoffZone('newTFormat', 'playoffZoneDiv')">
                 <option value="table">Table (League Only)</option>
                 <option value="table_playoffs">Table + Playoffs</option>
                 <option value="bracket">Pure Knockout Bracket</option>
@@ -131,7 +120,11 @@
     <div id="view-tournament" class="view">
         <div class="nav-bar">
             <button class="btn-outline btn-small" onclick="closeTournament()" style="margin:0;">⬅ Home</button>
-            <h2 id="tHeaderName" style="margin:0; font-size:1.3rem;">Tournament Name</h2>
+            <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; justify-content: center;">
+                <h2 id="tHeaderName" style="margin:0; font-size:1.3rem;">Tournament Name</h2>
+                <select id="seasonSelector" onchange="changeSeason()" style="margin:0; padding:6px; font-size:0.9rem; width:auto;"></select>
+                <button id="newSeasonBtn" class="btn-small btn-outline" style="margin:0; display:none;" onclick="showModal('newSeasonModal')">+ New Season</button>
+            </div>
             <div class="nav-tabs">
                 <div class="nav-tab active" id="tab-manage" onclick="switchTab('manage')">Manager</div>
                 <div class="nav-tab" id="tab-stats" onclick="switchTab('stats')">Season Stats</div>
@@ -143,7 +136,7 @@
             <div id="winnerContainer" style="display:none;">
                 <div class="winner-banner">
                     <div style="font-size: 4rem; margin-bottom: 10px;">🏆</div>
-                    <h2 style="margin: 0; text-transform: uppercase; letter-spacing: 2px;">Champion</h2>
+                    <h2 style="margin: 0; text-transform: uppercase; letter-spacing: 2px;">Season Champion</h2>
                     <h1 id="winnerText" style="margin: 10px 0 0 0; font-size: 3rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">Team Name</h1>
                 </div>
             </div>
@@ -160,7 +153,7 @@
                 </div>
 
                 <div class="card">
-                    <h2>Schedule</h2>
+                    <h2>Season Schedule</h2>
                     <div id="scheduleContainer" style="max-height: 400px; overflow-y: auto;"></div>
                 </div>
             </div>
@@ -200,11 +193,11 @@
         <div id="tab-content-stats" style="display:none;">
             <div class="grid-2">
                 <div class="card">
-                    <h3>⚽ Season Top Scorers</h3>
+                    <h3>⚽ Golden Boot (Current Season)</h3>
                     <table><thead><tr><th class="text-left">Player</th><th class="text-left">Team</th><th>G</th></tr></thead><tbody id="seasonScorers"></tbody></table>
                 </div>
                 <div class="card">
-                    <h3>👟 Season Playmakers</h3>
+                    <h3>👟 Top Playmaker (Current Season)</h3>
                     <table><thead><tr><th class="text-left">Player</th><th class="text-left">Team</th><th>A</th></tr></thead><tbody id="seasonAssists"></tbody></table>
                 </div>
             </div>
@@ -222,10 +215,47 @@
         </div>
     </div>
 
+    <!-- NEW SEASON MODAL -->
+    <div id="newSeasonModal" class="modal-bg">
+        <div class="modal">
+            <h2 style="margin-top: 0;">Configure New Season</h2>
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Season Format</label>
+            <select id="newSFormat" onchange="togglePlayoffZone('newSFormat', 'newSZoneDiv')">
+                <option value="table">Table (League Only)</option>
+                <option value="table_playoffs">Table + Playoffs</option>
+                <option value="bracket">Pure Knockout Bracket</option>
+            </select>
+            
+            <div id="newSZoneDiv" style="display:none; background: #f9fafb; padding: 15px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 15px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px;">Playoff Qualification Zone</label>
+                <input type="number" id="newSZone" placeholder="e.g., 4" value="4" min="2" style="margin-bottom: 0;">
+            </div>
+            
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button onclick="submitNewSeason()">Start Season</button>
+                <button class="btn-outline" onclick="hideModal('newSeasonModal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // --- DATABASE INIT ---
+        // --- DATABASE INIT & MIGRATION ---
         let appDb = JSON.parse(localStorage.getItem('ultimatePlatformDb')) || { tournaments: [] };
+        
+        // Migrate old saves to support Seasons array
+        appDb.tournaments.forEach(t => {
+            if (!t.seasons) {
+                t.seasons = [{
+                    id: 1, name: 'Season 1',
+                    format: t.format || 'table', playoffZone: t.playoffZone || 4,
+                    status: t.status || 'setup', matches: t.matches || [],
+                    schedule: t.schedule || [], winner: t.winner || null
+                }];
+            }
+        });
+
         let activeT = null; 
+        let activeSeasonIdx = 0;
         let activeMatchIdx = 0;
 
         function saveApp() { localStorage.setItem('ultimatePlatformDb', JSON.stringify(appDb)); }
@@ -235,59 +265,28 @@
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
             
-            if (viewId === 'view-splash') renderAllTimeStats();
             if (viewId === 'view-lobby') renderLobbyGrid();
             if (viewId === 'view-create') {
                 document.getElementById('newTName').value = '';
                 document.getElementById('newTFormat').value = 'table';
-                togglePlayoffZone();
+                togglePlayoffZone('newTFormat', 'playoffZoneDiv');
             }
         }
 
-        // --- SPLASH & LOBBY LOGIC ---
-        function renderAllTimeStats() {
-            let pStats = {};
-            appDb.tournaments.forEach(t => {
-                t.matches.forEach(m => {
-                    m.events.forEach(ev => {
-                        if(ev.scorer) {
-                            if(!pStats[ev.scorer]) pStats[ev.scorer] = { g: 0, a: 0, tourneys: new Set() };
-                            pStats[ev.scorer].g++; pStats[ev.scorer].tourneys.add(t.name);
-                        }
-                        if(ev.assist) {
-                            if(!pStats[ev.assist]) pStats[ev.assist] = { g: 0, a: 0, tourneys: new Set() };
-                            pStats[ev.assist].a++; pStats[ev.assist].tourneys.add(t.name);
-                        }
-                    });
-                });
-            });
-
-            let arr = Object.entries(pStats).map(([n, d]) => ({ name: n, ...d }));
-            let scorers = [...arr].sort((a,b) => b.g - a.g).filter(p => p.g > 0).slice(0, 10);
-            let assists = [...arr].sort((a,b) => b.a - a.a).filter(p => p.a > 0).slice(0, 10);
-
-            const buildRow = (p, val) => `<tr><td class="text-left"><strong>${p.name}</strong><br><span style="font-size:0.7rem; color:#6b7280;">Played in ${p.tourneys.size} tournament(s)</span></td><td><strong>${val}</strong></td></tr>`;
-            
-            document.getElementById('allTimeScorers').innerHTML = scorers.length ? scorers.map(p => buildRow(p, p.g)).join('') : '<tr><td colspan="2">No data yet.</td></tr>';
-            document.getElementById('allTimeAssists').innerHTML = assists.length ? assists.map(p => buildRow(p, p.a)).join('') : '<tr><td colspan="2">No data yet.</td></tr>';
-        }
-
+        // --- LOBBY LOGIC ---
         function renderLobbyGrid() {
             let search = document.getElementById('searchBar').value.toLowerCase();
             let grid = document.getElementById('tourneyGrid');
             grid.innerHTML = '';
             
             let filtered = appDb.tournaments.filter(t => t.name.toLowerCase().includes(search));
-            
-            if(filtered.length === 0) {
-                grid.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color:#6b7280;">No tournaments found.</p>`;
-                return;
-            }
+            if(filtered.length === 0) return grid.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color:#6b7280;">No tournaments found.</p>`;
 
             [...filtered].reverse().forEach(t => {
                 let teamsList = Object.keys(t.teams).map(tm => `<span class="bubble">${tm}</span>`).join('') || '<span style="font-size:0.8rem; color:#9ca3af;">No teams added yet.</span>';
-                let fmtText = t.format === 'table' ? 'League Only' : (t.format === 'bracket' ? 'Pure Knockout' : `League + Top ${t.playoffZone} Playoffs`);
-                let statusBadge = t.status === 'finished' ? '🏆 Finished' : (t.status === 'setup' ? '⚙️ Setup' : '⚽ Active');
+                let currentSeason = t.seasons[t.seasons.length - 1];
+                let fmtText = currentSeason.format === 'table' ? 'League Only' : (currentSeason.format === 'bracket' ? 'Pure Knockout' : `League + Playoffs`);
+                let statusBadge = currentSeason.status === 'finished' ? '🏆 Finished' : (currentSeason.status === 'setup' ? '⚙️ Setup' : '⚽ Active');
                 
                 grid.innerHTML += `
                     <div class="card" style="cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" onclick="openTournament(${t.id})">
@@ -295,7 +294,7 @@
                             <strong style="font-size:1.2rem;">${t.name}</strong>
                             <span style="font-size:0.8rem; color:#6b7280;">${statusBadge}</span>
                         </div>
-                        <div style="font-size:0.8rem; color:var(--primary); margin-bottom:10px; font-weight:600;">Format: ${fmtText}</div>
+                        <div style="font-size:0.8rem; color:var(--primary); margin-bottom:10px; font-weight:600;">Season ${t.seasons.length}: ${fmtText}</div>
                         <div>${teamsList}</div>
                         <button class="btn-danger btn-small" style="margin-top: 15px; width: 100%;" onclick="event.stopPropagation(); deleteTournament(${t.id})">Delete</button>
                     </div>
@@ -304,17 +303,16 @@
         }
 
         function deleteTournament(id) {
-            if(confirm("Are you sure you want to permanently delete this tournament?")) {
+            if(confirm("Are you sure you want to permanently delete this tournament and all its seasons?")) {
                 appDb.tournaments = appDb.tournaments.filter(t => t.id !== id);
-                saveApp();
-                renderLobbyGrid();
+                saveApp(); renderLobbyGrid();
             }
         }
 
         // --- CREATION LOGIC ---
-        function togglePlayoffZone() {
-            let fmt = document.getElementById('newTFormat').value;
-            document.getElementById('playoffZoneDiv').style.display = fmt === 'table_playoffs' ? 'block' : 'none';
+        function togglePlayoffZone(selectId, targetDivId) {
+            let fmt = document.getElementById(selectId).value;
+            document.getElementById(targetDivId).style.display = fmt === 'table_playoffs' ? 'block' : 'none';
         }
 
         function submitNewTournament() {
@@ -323,10 +321,29 @@
             let fmt = document.getElementById('newTFormat').value;
             let zone = parseInt(document.getElementById('newTZone').value) || 4;
             
-            let newT = { id: Date.now(), name, format: fmt, playoffZone: zone, status: 'setup', teams: {}, matches: [], schedule: [], winner: null };
+            let newT = { 
+                id: Date.now(), name, teams: {}, 
+                seasons: [{ id: 1, name: 'Season 1', format: fmt, playoffZone: zone, status: 'setup', matches: [], schedule: [], winner: null }]
+            };
             appDb.tournaments.push(newT);
-            saveApp();
-            openTournament(newT.id);
+            saveApp(); openTournament(newT.id);
+        }
+
+        function showModal(id) { document.getElementById(id).style.display = 'grid'; }
+        function hideModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        function submitNewSeason() {
+            let fmt = document.getElementById('newSFormat').value;
+            let zone = parseInt(document.getElementById('newSZone').value) || 4;
+            let sName = 'Season ' + (activeT.seasons.length + 1);
+            
+            let newS = { id: Date.now(), name: sName, format: fmt, playoffZone: zone, status: 'setup', matches: [], schedule: [], winner: null };
+            activeT.seasons.push(newS);
+            activeSeasonIdx = activeT.seasons.length - 1;
+            activeMatchIdx = 0;
+            
+            generateInitialSchedule(); 
+            saveApp(); hideModal('newSeasonModal'); refreshTUI();
         }
 
         // --- TOURNAMENT CORE LOGIC ---
@@ -336,6 +353,7 @@
             
             showView('view-tournament');
             document.getElementById('tHeaderName').innerText = activeT.name;
+            activeSeasonIdx = activeT.seasons.length - 1; // Default to latest
             activeMatchIdx = 0;
             switchTab('manage');
             refreshTUI();
@@ -343,6 +361,13 @@
 
         function closeTournament() { saveApp(); showView('view-splash'); }
         
+        function changeSeason() {
+            activeSeasonIdx = parseInt(document.getElementById('seasonSelector').value);
+            activeMatchIdx = 0;
+            refreshTUI();
+            if(document.getElementById('tab-stats').classList.contains('active')) renderSeasonStats();
+        }
+
         function switchTab(tab) {
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
             document.getElementById(`tab-${tab}`).classList.add('active');
@@ -351,8 +376,10 @@
             if(tab === 'stats') renderSeasonStats();
         }
 
+        // --- TEAM MANAGEMENT ---
         function addTeam() {
-            if(activeT.status !== 'setup') return alert("Tournament in progress! Can't add teams.");
+            let cs = activeT.seasons[activeSeasonIdx];
+            if(cs.status !== 'setup') return alert("Season in progress! Can't add teams to this active season.");
             let name = document.getElementById('newTeam').value.trim();
             if (name && !activeT.teams[name]) { 
                 activeT.teams[name] = []; document.getElementById('newTeam').value = ''; 
@@ -363,82 +390,91 @@
             let pName = document.getElementById(`p_${team.replace(/\s+/g, '')}`).value.trim();
             if (pName && !activeT.teams[team].includes(pName)) { activeT.teams[team].push(pName); saveApp(); refreshTUI(); }
         }
+        function editPlayer(team, oldName) {
+            let newName = prompt(`Edit name for ${oldName}:`, oldName);
+            if(newName && newName.trim() !== "" && newName !== oldName) {
+                activeT.teams[team][activeT.teams[team].indexOf(oldName)] = newName.trim();
+                // Update past matches in ALL seasons so stats stay connected
+                activeT.seasons.forEach(s => {
+                    s.matches.forEach(m => m.events.forEach(ev => {
+                        if(ev.team === team) { 
+                            if(ev.scorer === oldName) ev.scorer = newName.trim(); 
+                            if(ev.assist === oldName) ev.assist = newName.trim(); 
+                        }
+                    }));
+                });
+                saveApp(); refreshTUI();
+            }
+        }
+        function removePlayer(team, player) {
+            if(confirm(`Remove ${player} from ${team}?`)) { activeT.teams[team] = activeT.teams[team].filter(p => p !== player); saveApp(); refreshTUI(); }
+        }
 
         // --- SCHEDULING ENGINE ---
         function generateInitialSchedule() {
-            if(activeT.status !== 'setup') return;
+            let cs = activeT.seasons[activeSeasonIdx];
+            if(cs.status !== 'setup') return;
             let teams = Object.keys(activeT.teams);
-            if(teams.length < 2) { activeT.schedule = []; return; }
+            if(teams.length < 2) { cs.schedule = []; return; }
             
-            if(activeT.format === 'bracket') {
-                // Generate Knockout Round 1
+            if(cs.format === 'bracket') {
                 teams.sort(() => Math.random() - 0.5);
-                activeT.schedule = [];
+                cs.schedule = [];
                 for(let i=0; i<teams.length; i+=2) {
-                    if(teams[i+1]) activeT.schedule.push({ tA: teams[i], tB: teams[i+1], type: 'knockout' });
+                    if(teams[i+1]) cs.schedule.push({ tA: teams[i], tB: teams[i+1], type: 'knockout' });
                 }
             } else {
-                // Generate Double Round Robin
                 let pTeams = [...teams];
                 if (pTeams.length % 2 !== 0) pTeams.push(null);
                 let n = pTeams.length, rounds = [];
                 for (let i=0; i<n-1; i++) {
                     let round = [];
-                    for (let j=0; j<n/2; j++) {
-                        if (pTeams[j] && pTeams[n-1-j]) round.push({ tA: pTeams[j], tB: pTeams[n-1-j], type: 'league' });
-                    }
+                    for (let j=0; j<n/2; j++) if (pTeams[j] && pTeams[n-1-j]) round.push({ tA: pTeams[j], tB: pTeams[n-1-j], type: 'league' });
                     rounds.push(round);
                     pTeams.splice(1, 0, pTeams.pop());
                 }
                 let secondHalf = rounds.map(r => r.map(m => ({ tA: m.tB, tB: m.tA, type: 'league' })));
-                activeT.schedule = [...rounds.flat(), ...secondHalf.flat()];
+                cs.schedule = [...rounds.flat(), ...secondHalf.flat()];
             }
         }
 
         function triggerNextPhase() {
-            if (activeT.format === 'table') {
-                activeT.status = 'finished';
-                activeT.winner = calculateStandings()[0].name;
+            let cs = activeT.seasons[activeSeasonIdx];
+            if (cs.format === 'table') {
+                cs.status = 'finished';
+                cs.winner = calculateStandings()[0].name;
             } 
-            else if (activeT.format === 'table_playoffs') {
+            else if (cs.format === 'table_playoffs') {
                 let standings = calculateStandings();
-                let qualified = standings.slice(0, activeT.playoffZone).map(t => t.name);
+                let qualified = standings.slice(0, cs.playoffZone).map(t => t.name);
                 
                 if(qualified.length === 2) {
-                    activeT.schedule = [{ tA: qualified[0], tB: qualified[1], type: 'final' }];
-                    activeT.status = 'playoffs';
+                    cs.schedule = [{ tA: qualified[0], tB: qualified[1], type: 'final' }];
+                    cs.status = 'playoffs';
                 } else if(qualified.length >= 4) {
-                    activeT.schedule = [
-                        { tA: qualified[0], tB: qualified[3], type: 'semifinal' },
-                        { tA: qualified[1], tB: qualified[2], type: 'semifinal' }
-                    ];
-                    activeT.status = 'playoffs';
+                    cs.schedule = [{ tA: qualified[0], tB: qualified[3], type: 'semifinal' }, { tA: qualified[1], tB: qualified[2], type: 'semifinal' }];
+                    cs.status = 'playoffs';
                 } else {
-                    alert("Not enough teams to form playoffs. Ending tournament as League.");
-                    activeT.status = 'finished';
-                    activeT.winner = qualified[0];
+                    alert("Not enough teams to form playoffs. Ending season as League.");
+                    cs.status = 'finished'; cs.winner = qualified[0];
                 }
             }
-            else if (activeT.format === 'bracket' || activeT.status === 'playoffs') {
-                let recentType = activeT.matches[activeT.matches.length-1].type;
+            else if (cs.format === 'bracket' || cs.status === 'playoffs') {
+                let recentType = cs.matches[cs.matches.length-1].type;
                 if(recentType === 'final') {
-                    activeT.status = 'finished';
+                    cs.status = 'finished';
                 } else {
-                    let phaseMatches = activeT.matches.filter(m => m.type === recentType);
+                    let phaseMatches = cs.matches.filter(m => m.type === recentType);
                     let phaseWinners = phaseMatches.map(m => m.scoreA > m.scoreB ? m.teamA : m.teamB);
                     let queue = phaseWinners.slice(-2); 
-                    
-                    if(queue.length === 2) {
-                        activeT.schedule.push({ tA: queue[0], tB: queue[1], type: recentType === 'semifinal' ? 'final' : 'next_round' });
-                    } else {
-                         activeT.status = 'finished';
-                    }
+                    if(queue.length === 2) cs.schedule.push({ tA: queue[0], tB: queue[1], type: recentType === 'semifinal' ? 'final' : 'next_round' });
+                    else cs.status = 'finished';
                 }
             }
         }
 
         // --- MATCH ENTRY LOGIC ---
-        function getActiveTeams() { return activeT.schedule[activeMatchIdx] || activeT.schedule[0]; }
+        function getActiveTeams() { return activeT.seasons[activeSeasonIdx].schedule[activeMatchIdx] || activeT.seasons[activeSeasonIdx].schedule[0]; }
         
         function updateGoals() { 
             let match = getActiveTeams();
@@ -459,6 +495,7 @@
         }
 
         function saveMatch() {
+            let cs = activeT.seasons[activeSeasonIdx];
             let matchData = getActiveTeams();
             if (!matchData) return;
             let sA = parseInt(document.getElementById('scoreA').value) || 0;
@@ -476,16 +513,15 @@
             extract('A', matchData.tA); extract('B', matchData.tB);
             if(error) return alert("A player cannot assist themselves!");
 
-            if(activeT.status === 'setup') activeT.status = activeT.format === 'bracket' ? 'playoffs' : 'league';
+            if(cs.status === 'setup') cs.status = cs.format === 'bracket' ? 'playoffs' : 'league';
             
-            activeT.matches.push({ type: matchData.type, teamA: matchData.tA, teamB: matchData.tB, scoreA: sA, scoreB: sB, events });
-            
-            if(matchData.type === 'final') activeT.winner = sA > sB ? matchData.tA : matchData.tB;
+            cs.matches.push({ type: matchData.type, teamA: matchData.tA, teamB: matchData.tB, scoreA: sA, scoreB: sB, events });
+            if(matchData.type === 'final') cs.winner = sA > sB ? matchData.tA : matchData.tB;
 
-            activeT.schedule.splice(activeMatchIdx || 0, 1);
+            cs.schedule.splice(activeMatchIdx || 0, 1);
             activeMatchIdx = 0;
             
-            if(activeT.schedule.length === 0 && activeT.status !== 'finished') triggerNextPhase();
+            if(cs.schedule.length === 0 && cs.status !== 'finished') triggerNextPhase();
 
             document.getElementById('scoreA').value = 0; document.getElementById('scoreB').value = 0;
             saveApp(); refreshTUI();
@@ -494,9 +530,10 @@
 
         // --- TOURNAMENT UI RENDERER ---
         function calculateStandings() {
+            let cs = activeT.seasons[activeSeasonIdx];
             let stats = {};
             Object.keys(activeT.teams).forEach(t => stats[t] = { p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, name: t });
-            let lm = activeT.matches.filter(m => m.type === 'league');
+            let lm = cs.matches.filter(m => m.type === 'league');
             lm.forEach(m => {
                 let a=stats[m.teamA], b=stats[m.teamB];
                 if(a && b) {
@@ -510,24 +547,37 @@
 
         function refreshTUI() {
             if(!activeT) return;
+            let cs = activeT.seasons[activeSeasonIdx];
+
+            // Setup Season Dropdown
+            let sSelect = document.getElementById('seasonSelector');
+            sSelect.innerHTML = activeT.seasons.map((s, i) => `<option value="${i}" ${i === activeSeasonIdx ? 'selected' : ''}>${s.name}</option>`).join('');
+            
+            // Show "New Season" button only if viewing the latest season and it's finished
+            let isLatest = activeSeasonIdx === activeT.seasons.length - 1;
+            document.getElementById('newSeasonBtn').style.display = (isLatest && cs.status === 'finished') ? 'block' : 'none';
 
             // Teams Container
-            document.getElementById('addTeamSection').style.display = activeT.status === 'setup' ? 'flex' : 'none';
-            document.getElementById('rosterWarning').innerText = activeT.status === 'setup' ? 'Add teams to auto-generate the schedule.' : 'Tournament in progress. Rosters are locked.';
+            document.getElementById('addTeamSection').style.display = cs.status === 'setup' ? 'flex' : 'none';
+            document.getElementById('rosterWarning').innerText = cs.status === 'setup' ? 'Add teams to generate schedule for this season.' : 'Season in progress. Schedule locked.';
 
             let tBox = document.getElementById('teamsContainer'); tBox.innerHTML = '';
             Object.entries(activeT.teams).forEach(([t, p]) => {
-                let html = p.map(player => `<div class="list-item"><span>${player}</span></div>`).join('');
+                let html = p.map(player => `
+                    <div class="list-item"><span>${player}</span><div>
+                        <button class="btn-small" style="background:#f59e0b;" onclick="editPlayer('${t}', '${player}')">✏️</button>
+                        <button class="btn-small" style="background:var(--danger);" onclick="removePlayer('${t}', '${player}')">❌</button>
+                    </div></div>`).join('');
                 tBox.innerHTML += `<details><summary>${t} <span style="font-weight:normal; font-size:0.8rem; color:#666;">(${p.length} pl)</span></summary>
                 <div style="margin-top:10px;">${html}<div style="display:flex; gap:5px;"><input type="text" id="p_${t.replace(/\s+/g, '')}" placeholder="Add player" style="margin:0;"><button class="btn-small" onclick="addPlayer('${t}')">+</button></div></div></details>`;
             });
 
             // Schedule Container
             let schedBox = document.getElementById('scheduleContainer');
-            if (activeT.status === 'finished') schedBox.innerHTML = '<div style="text-align:center; padding:20px; font-weight:bold; color:#10b981;">Tournament Concluded</div>';
+            if (cs.status === 'finished') schedBox.innerHTML = '<div style="text-align:center; padding:20px; font-weight:bold; color:#10b981;">Season Concluded</div>';
             else {
-                schedBox.innerHTML = activeT.schedule.length === 0 ? '<p style="text-align:center; color:#666;">Waiting for teams...</p>' : '';
-                activeT.schedule.forEach((m, i) => {
+                schedBox.innerHTML = cs.schedule.length === 0 ? '<p style="text-align:center; color:#666;">Waiting for teams...</p>' : '';
+                cs.schedule.forEach((m, i) => {
                     let badge = m.type === 'league' ? `<span class="badge badge-league">LEAGUE</span>` : `<span class="badge badge-knockout">${m.type.toUpperCase()}</span>`;
                     let isNext = i === activeMatchIdx;
                     schedBox.innerHTML += `<div class="list-item" style="${isNext ? 'border-left:4px solid var(--primary); background:#eff6ff;' : ''}">
@@ -538,30 +588,30 @@
             }
 
             // Standings
-            document.getElementById('standingsCard').style.display = activeT.format === 'bracket' ? 'none' : 'block';
-            if(activeT.format !== 'bracket') {
+            document.getElementById('standingsCard').style.display = cs.format === 'bracket' ? 'none' : 'block';
+            if(cs.format !== 'bracket') {
                 let table = calculateStandings();
                 let bdy = document.getElementById('standingsBody'); bdy.innerHTML = '';
                 table.forEach((t, i) => {
-                    let isPlayoff = activeT.format === 'table_playoffs' && i < activeT.playoffZone && t.p > 0;
+                    let isPlayoff = cs.format === 'table_playoffs' && i < cs.playoffZone && t.p > 0;
                     bdy.innerHTML += `<tr class="${isPlayoff ? 'playoff-zone' : ''}"><td>${i+1}</td><td class="text-left"><strong>${t.name}</strong></td>
                     <td>${t.p}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gf}</td><td>${t.ga}</td><td>${t.gd>0?'+'+t.gd:t.gd}</td><td><strong>${t.pts}</strong></td></tr>`;
                 });
             }
 
             // Match Entry & Winner UI
-            if (activeT.status === 'finished' && activeT.winner) {
+            if (cs.status === 'finished' && cs.winner) {
                 document.getElementById('managerDashboard').style.display = 'none';
                 document.getElementById('matchEntryCard').style.display = 'none';
                 document.getElementById('winnerContainer').style.display = 'block';
-                document.getElementById('winnerText').innerText = activeT.winner;
+                document.getElementById('winnerText').innerText = cs.winner;
             } else {
                 document.getElementById('managerDashboard').style.display = 'grid';
                 document.getElementById('winnerContainer').style.display = 'none';
                 
-                if (activeT.schedule.length > 0) {
+                if (cs.schedule.length > 0) {
                     document.getElementById('matchEntryCard').style.display = 'block';
-                    let m = activeT.schedule[activeMatchIdx];
+                    let m = cs.schedule[activeMatchIdx];
                     document.getElementById('teamA_label').innerText = m.tA;
                     document.getElementById('teamB_label').innerText = m.tB;
                     let title = document.getElementById('matchEntryTitle');
@@ -574,8 +624,8 @@
 
             // History Log
             let hBox = document.getElementById('historyContainer');
-            hBox.innerHTML = activeT.matches.length === 0 ? '<p style="text-align:center; color:#666;">No matches played.</p>' : '';
-            [...activeT.matches].reverse().forEach(m => {
+            hBox.innerHTML = cs.matches.length === 0 ? '<p style="text-align:center; color:#666;">No matches played this season.</p>' : '';
+            [...cs.matches].reverse().forEach(m => {
                 let badge = m.type === 'league' ? `<span class="badge badge-league">LEAGUE</span>` : `<span class="badge badge-knockout">${m.type.toUpperCase()}</span>`;
                 let evs = m.events.map(ev => `⚽ <strong>${ev.scorer}</strong> ${ev.assist ? `<span style="color:#9ca3af; font-size:0.75rem;">(ast: ${ev.assist})</span>` : ''}`).join('<br>') || '<span style="color:#9ca3af; font-size:0.8rem;">No events.</span>';
                 hBox.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:flex-start;">
@@ -589,10 +639,11 @@
         // --- SEASON STATS TAB ---
         function renderSeasonStats() {
             if(!activeT) return;
+            let cs = activeT.seasons[activeSeasonIdx];
             let pStats = {};
             Object.entries(activeT.teams).forEach(([t, ps]) => ps.forEach(p => pStats[p] = { team: t, g: 0, a: 0 }));
             
-            activeT.matches.forEach(m => m.events.forEach(ev => {
+            cs.matches.forEach(m => m.events.forEach(ev => {
                 if(ev.scorer) { pStats[ev.scorer] = pStats[ev.scorer] || { team: ev.team, g:0, a:0 }; pStats[ev.scorer].g++; }
                 if(ev.assist) { pStats[ev.assist] = pStats[ev.assist] || { team: ev.team, g:0, a:0 }; pStats[ev.assist].a++; }
             }));
@@ -601,8 +652,8 @@
             let scorers = [...arr].sort((a,b) => b.g - a.g).filter(p => p.g > 0).slice(0, 10);
             let assists = [...arr].sort((a,b) => b.a - a.a).filter(p => p.a > 0).slice(0, 10);
 
-            document.getElementById('seasonScorers').innerHTML = scorers.map(p => `<tr><td class="text-left"><strong>${p.name}</strong></td><td class="text-left" style="font-size:0.8rem; color:#666;">${p.team}</td><td><strong>${p.g}</strong></td></tr>`).join('') || '<tr><td colspan="3">No goals logged.</td></tr>';
-            document.getElementById('seasonAssists').innerHTML = assists.map(p => `<tr><td class="text-left"><strong>${p.name}</strong></td><td class="text-left" style="font-size:0.8rem; color:#666;">${p.team}</td><td><strong>${p.a}</strong></td></tr>`).join('') || '<tr><td colspan="3">No assists logged.</td></tr>';
+            document.getElementById('seasonScorers').innerHTML = scorers.map(p => `<tr><td class="text-left"><strong>${p.name}</strong></td><td class="text-left" style="font-size:0.8rem; color:#666;">${p.team}</td><td><strong>${p.g}</strong></td></tr>`).join('') || '<tr><td colspan="3">No goals logged this season.</td></tr>';
+            document.getElementById('seasonAssists').innerHTML = assists.map(p => `<tr><td class="text-left"><strong>${p.name}</strong></td><td class="text-left" style="font-size:0.8rem; color:#666;">${p.team}</td><td><strong>${p.a}</strong></td></tr>`).join('') || '<tr><td colspan="3">No assists logged this season.</td></tr>';
 
             let filter = document.getElementById('teamFilter');
             let currentFilter = filter.value;
