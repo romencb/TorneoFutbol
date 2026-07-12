@@ -58,7 +58,7 @@
 
         /* Modal */
         .modal-bg { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; place-items:center; z-index: 100; }
-        .modal { background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; }
+        .modal { background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;}
 
         /* Champion Banner */
         .winner-banner { background: linear-gradient(135deg, #f59e0b, #fbbf24); padding: 30px; border-radius: 12px; text-align: center; color: white; margin-bottom: 20px; box-shadow: 0 10px 25px rgba(245, 158, 11, 0.3); }
@@ -172,9 +172,9 @@
                 <div id="matchEntryContent">
                     <div style="display: flex; gap: 10px; align-items: center; justify-content: center; margin-bottom: 20px;">
                         <div style="flex: 1; text-align: right;"><h3 id="teamA_label" style="margin:0; font-size:1.5rem;">Team A</h3></div>
-                        <input type="number" id="scoreA" value="0" oninput="updateGoals()" style="width: 70px; text-align:center; font-weight:bold; font-size:1.8rem; margin:0;">
+                        <input type="number" id="scoreA" value="0" min="0" oninput="updateGoals()" style="width: 70px; text-align:center; font-weight:bold; font-size:1.8rem; margin:0;">
                         <strong style="font-size: 1.2rem; color: #6b7280;">VS</strong>
-                        <input type="number" id="scoreB" value="0" oninput="updateGoals()" style="width: 70px; text-align:center; font-weight:bold; font-size:1.8rem; margin:0;">
+                        <input type="number" id="scoreB" value="0" min="0" oninput="updateGoals()" style="width: 70px; text-align:center; font-weight:bold; font-size:1.8rem; margin:0;">
                         <div style="flex: 1; text-align: left;"><h3 id="teamB_label" style="margin:0; font-size:1.5rem;">Team B</h3></div>
                     </div>
                     
@@ -250,6 +250,32 @@
         </div>
     </div>
 
+    <!-- EDIT MATCH MODAL -->
+    <div id="editMatchModal" class="modal-bg">
+        <div class="modal" style="max-width: 600px;">
+            <h2 style="margin-top: 0;">Edit Match Results</h2>
+            <input type="hidden" id="editMatchIdx">
+            
+            <div style="display: flex; gap: 10px; align-items: center; justify-content: center; margin-bottom: 20px;">
+                <div style="flex: 1; text-align: right;"><h3 id="editTeamA_label" style="margin:0;">Team A</h3></div>
+                <input type="number" id="editScoreA" min="0" oninput="updateEditGoals()" style="width: 70px; text-align:center; font-weight:bold; font-size:1.5rem; margin:0;">
+                <strong style="font-size: 1.2rem; color: #6b7280;">VS</strong>
+                <input type="number" id="editScoreB" min="0" oninput="updateEditGoals()" style="width: 70px; text-align:center; font-weight:bold; font-size:1.5rem; margin:0;">
+                <div style="flex: 1; text-align: left;"><h3 id="editTeamB_label" style="margin:0;">Team B</h3></div>
+            </div>
+            
+            <div class="grid-2">
+                <div id="editGoalsA" style="margin-bottom: 20px;"></div>
+                <div id="editGoalsB"></div>
+            </div>
+            
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button onclick="saveMatchEdit()">Save Changes</button>
+                <button class="btn-outline" onclick="hideModal('editMatchModal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- BULLETPROOF DATABASE INIT & MIGRATION ---
         let appDb;
@@ -286,6 +312,7 @@
         let activeT = null; 
         let activeSeasonIdx = 0;
         let activeMatchIdx = 0;
+        let currentEditEvents = { A: [], B: [] }; // Cache for the edit modal
 
         function saveApp() { localStorage.setItem('ultimatePlatformDb', JSON.stringify(appDb)); }
 
@@ -590,6 +617,121 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+        // --- MATCH EDITING LOGIC ---
+        function openEditMatch(idx) {
+            let cs = activeT.seasons[activeSeasonIdx];
+            let m = cs.matches[idx];
+            document.getElementById('editMatchIdx').value = idx;
+            document.getElementById('editTeamA_label').innerText = m.teamA;
+            document.getElementById('editTeamB_label').innerText = m.teamB;
+            document.getElementById('editScoreA').value = m.scoreA;
+            document.getElementById('editScoreB').value = m.scoreB;
+            
+            currentEditEvents.A = m.events.filter(e => e.team === m.teamA);
+            currentEditEvents.B = m.events.filter(e => e.team === m.teamB);
+            
+            showModal('editMatchModal');
+            updateEditGoals();
+        }
+
+        function updateEditGoals() {
+            let cs = activeT.seasons[activeSeasonIdx];
+            let idx = document.getElementById('editMatchIdx').value;
+            let m = cs.matches[idx];
+            
+            // Cache existing unsaved selections before re-rendering if fields exist
+            if (document.querySelector('.edit-sc-A') || document.querySelector('.edit-sc-B')) {
+                const cacheSide = (side) => {
+                    let evs = [];
+                    document.querySelectorAll(`.edit-sc-${side}`).forEach((sc, i) => {
+                        let ast = document.querySelectorAll(`.edit-as-${side}`)[i].value;
+                        evs.push({ scorer: sc.value, assist: ast });
+                    });
+                    return evs;
+                };
+                currentEditEvents.A = cacheSide('A');
+                currentEditEvents.B = cacheSide('B');
+            }
+            
+            renderEditGoals('A', m.teamA, 'editScoreA', 'editGoalsA');
+            renderEditGoals('B', m.teamB, 'editScoreB', 'editGoalsB');
+        }
+
+        function renderEditGoals(side, team, scrId, boxId) {
+            let score = parseInt(document.getElementById(scrId).value) || 0;
+            let box = document.getElementById(boxId);
+            if (!team || score === 0) { box.innerHTML = ''; return; }
+            
+            let players = activeT.teams[team] || [];
+            let html = `<h4 style="margin:0 0 10px 0; text-align:center; color:#374151;">⚽ ${team}</h4>`;
+            let cachedEvents = currentEditEvents[side] || [];
+
+            if (players.length === 1) {
+                let p = players[0];
+                for(let i=0; i<score; i++) {
+                    html += `
+                    <div class="goal-block">
+                        <select class="edit-sc-${side}"><option value="${p}">${p}</option></select>
+                        <select class="edit-as-${side}" disabled><option value="">- No assist possible -</option></select>
+                    </div>`;
+                }
+            } else {
+                for(let i=0; i<score; i++) {
+                    let ev = cachedEvents[i] || { scorer: '', assist: '' };
+                    let opts = `<option value="">- Scorer -</option>` + players.map(p => `<option value="${p}" ${p === ev.scorer ? 'selected' : ''}>${p}</option>`).join('');
+                    let astOpts = `<option value="">- Assist -</option>` + players.map(p => {
+                        let disabled = (ev.scorer && p === ev.scorer) ? 'disabled' : '';
+                        let selected = (p === ev.assist) ? 'selected' : '';
+                        return `<option value="${p}" ${selected} ${disabled}>${p}</option>`;
+                    }).join('');
+                    
+                    html += `
+                    <div class="goal-block">
+                        <select class="edit-sc-${side}" onchange="updateAssistOptions(this)">${opts}</select>
+                        <select class="edit-as-${side}">${astOpts}</select>
+                    </div>`;
+                }
+            }
+            box.innerHTML = html;
+        }
+
+        function saveMatchEdit() {
+            let cs = activeT.seasons[activeSeasonIdx];
+            let idx = document.getElementById('editMatchIdx').value;
+            let m = cs.matches[idx];
+            
+            let sA = parseInt(document.getElementById('editScoreA').value) || 0;
+            let sB = parseInt(document.getElementById('editScoreB').value) || 0;
+
+            if (m.type !== 'league' && sA === sB) return alert("Knockout matches must have a winner!");
+
+            let events = [], error = false;
+            const extract = (side, team) => {
+                document.querySelectorAll(`.edit-sc-${side}`).forEach((sc, i) => { 
+                    let ast = document.querySelectorAll(`.edit-as-${side}`)[i].value;
+                    if(sc.value) { if(sc.value === ast) error = true; events.push({ team, scorer: sc.value, assist: ast || null }); }
+                });
+            };
+            extract('A', m.teamA); extract('B', m.teamB);
+            
+            if(error) return alert("A player cannot assist themselves!");
+            
+            let oldWinner = m.scoreA > m.scoreB ? m.teamA : (m.scoreB > m.scoreA ? m.teamB : null);
+            let newWinner = sA > sB ? m.teamA : (sB > sA ? m.teamB : null);
+            
+            if (m.type !== 'league' && oldWinner !== newWinner) {
+                if(!confirm(`WARNING: Changing the winner of a past knockout match will NOT dynamically fix the rest of the bracket. Are you sure you want to proceed?`)) return;
+            }
+
+            m.scoreA = sA;
+            m.scoreB = sB;
+            m.events = events;
+            
+            if(m.type === 'final') cs.winner = sA > sB ? m.teamA : m.teamB;
+
+            saveApp(); hideModal('editMatchModal'); refreshTUI();
+        }
+
         // --- TOURNAMENT UI RENDERER ---
         function calculateStandings() {
             let cs = activeT.seasons[activeSeasonIdx];
@@ -680,12 +822,23 @@
 
             let hBox = document.getElementById('historyContainer');
             hBox.innerHTML = cs.matches.length === 0 ? '<p style="text-align:center; color:#666;">No matches played this season.</p>' : '';
-            [...cs.matches].reverse().forEach(m => {
+            
+            // Map to inject original index before reversing, so the Edit button targets the correct array element
+            cs.matches.map((m, originalIdx) => ({...m, _idx: originalIdx})).reverse().forEach(m => {
                 let badge = m.type === 'league' ? `<span class="badge badge-league">LEAGUE</span>` : `<span class="badge badge-knockout">${m.type.toUpperCase()}</span>`;
-                let evs = m.events.map(ev => `⚽ <strong>${ev.scorer}</strong> ${ev.assist ? `<span style="color:#9ca3af; font-size:0.75rem;">(ast: ${ev.assist})</span>` : ''}`).join('<br>') || '<span style="color:#9ca3af; font-size:0.8rem;">No events.</span>';
-                hBox.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:flex-start;">
-                    <div style="width:100%; display:flex; justify-content:space-between; margin-bottom:5px;"><span><strong>${m.teamA}</strong> ${m.scoreA} - ${m.scoreB} <strong>${m.teamB}</strong></span>${badge}</div>
-                    <div style="font-size:0.85rem;">${evs}</div></div>`;
+                let evs = m.events.map(ev => `⚽ <strong>${ev.scorer}</strong> ${ev.assist ? `<span style="color:#9ca3af; font-size:0.75rem;">(ast: ${ev.assist})</span>` : ''}`).join('<br>') || '<span style="color:#9ca3af; font-size:0.8rem;">No events recorded.</span>';
+                
+                hBox.innerHTML += `
+                    <div class="list-item" style="flex-direction:column; align-items:flex-start;">
+                        <div style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                            <span><strong>${m.teamA}</strong> ${m.scoreA} - ${m.scoreB} <strong>${m.teamB}</strong></span>
+                            <div>
+                                ${badge}
+                                <button class="btn-small btn-outline" style="margin-left:8px; padding:2px 8px; font-size:0.75rem;" onclick="openEditMatch(${m._idx})">✏️ Edit</button>
+                            </div>
+                        </div>
+                        <div style="font-size:0.85rem;">${evs}</div>
+                    </div>`;
             });
 
             updateGoals();
