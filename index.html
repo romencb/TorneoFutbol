@@ -104,7 +104,7 @@
             
             <div id="playoffZoneDiv" style="display:none; background: #f9fafb; padding: 15px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 15px;">
                 <label style="font-weight: bold; display: block; margin-bottom: 5px;">Playoff Qualification Zone</label>
-                <p style="font-size: 0.85rem; color: #666; margin-top: 0;">How many teams advance from the league table to the knockout stage?</p>
+                <p style="font-size: 0.85rem; color: #666; margin-top: 0;">How many teams advance from the league table to the knockout stage? (Select 3 for a 2nd vs 3rd Qualifier)</p>
                 <input type="number" id="newTZone" placeholder="e.g., 4" value="4" min="2" style="margin-bottom: 0;">
             </div>
             
@@ -493,6 +493,7 @@
             }
         }
 
+        // UPDATED: Stepladder Playoff Logic Included
         function triggerNextPhase() {
             let cs = activeT.seasons[activeSeasonIdx];
             if (cs.format === 'table') {
@@ -505,6 +506,10 @@
                 
                 if(qualified.length === 2) {
                     cs.schedule = [{ tA: qualified[0], tB: qualified[1], type: 'final' }];
+                    cs.status = 'playoffs';
+                } else if(qualified.length === 3) {
+                    // NEW: Stepladder logic -> 2nd vs 3rd qualifier
+                    cs.schedule = [{ tA: qualified[1], tB: qualified[2], type: 'qualifier' }];
                     cs.status = 'playoffs';
                 } else if(qualified.length >= 4) {
                     cs.schedule = [{ tA: qualified[0], tB: qualified[3], type: 'semifinal' }, { tA: qualified[1], tB: qualified[2], type: 'semifinal' }];
@@ -521,9 +526,16 @@
                 } else {
                     let phaseMatches = cs.matches.filter(m => m.type === recentType);
                     let phaseWinners = phaseMatches.map(m => m.scoreA > m.scoreB ? m.teamA : m.teamB);
-                    let queue = phaseWinners.slice(-2); 
-                    if(queue.length === 2) cs.schedule.push({ tA: queue[0], tB: queue[1], type: recentType === 'semifinal' ? 'final' : 'next_round' });
-                    else { cs.status = 'finished'; cs.winner = queue[0]; }
+                    
+                    // NEW: After Qualifier finishes, pair winner with 1st Place from League
+                    if (cs.format === 'table_playoffs' && cs.playoffZone === 3 && recentType === 'qualifier') {
+                        let firstPlace = calculateStandings()[0].name;
+                        cs.schedule.push({ tA: firstPlace, tB: phaseWinners[0], type: 'final' });
+                    } else {
+                        let queue = phaseWinners.slice(-2); 
+                        if(queue.length === 2) cs.schedule.push({ tA: queue[0], tB: queue[1], type: recentType === 'semifinal' ? 'final' : 'next_round' });
+                        else { cs.status = 'finished'; cs.winner = queue[0]; }
+                    }
                 }
             }
         }
@@ -639,7 +651,6 @@
             let idx = document.getElementById('editMatchIdx').value;
             let m = cs.matches[idx];
             
-            // Cache existing unsaved selections before re-rendering if fields exist
             if (document.querySelector('.edit-sc-A') || document.querySelector('.edit-sc-B')) {
                 const cacheSide = (side) => {
                     let evs = [];
@@ -823,7 +834,6 @@
             let hBox = document.getElementById('historyContainer');
             hBox.innerHTML = cs.matches.length === 0 ? '<p style="text-align:center; color:#666;">No matches played this season.</p>' : '';
             
-            // Map to inject original index before reversing, so the Edit button targets the correct array element
             cs.matches.map((m, originalIdx) => ({...m, _idx: originalIdx})).reverse().forEach(m => {
                 let badge = m.type === 'league' ? `<span class="badge badge-league">LEAGUE</span>` : `<span class="badge badge-knockout">${m.type.toUpperCase()}</span>`;
                 let evs = m.events.map(ev => `⚽ <strong>${ev.scorer}</strong> ${ev.assist ? `<span style="color:#9ca3af; font-size:0.75rem;">(ast: ${ev.assist})</span>` : ''}`).join('<br>') || '<span style="color:#9ca3af; font-size:0.8rem;">No events recorded.</span>';
